@@ -49,10 +49,10 @@ export const ManualView: React.FC<ManualViewProps> = ({
               href="/nexxus-v2.0-source-and-audit.zip"
               download="nexxus-v2.0-source-and-audit.zip"
               className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs font-mono transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-              title="Полный архив исходников, golden-векторов, протокольных спецификаций и переписки с Клодом (331 KB)"
+              title="Полный архив исходников, журнала 'Курилка', golden-векторов, спецификаций и переписки (339 KB)"
             >
               <Download className="w-4 h-4" />
-              <span>Архив v2.0 + Векторы (331 KB)</span>
+              <span>Архив v2.0 + Курилка (339 KB)</span>
             </a>
             <a
               href="/packages/nexxus-node_latest_amd64.deb"

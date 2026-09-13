@@ -17,6 +17,8 @@ DIRECTORIES = [
 ]
 
 EXPLICIT_FILES = [
+    'KURILKA.md',
+    'Kurilka.md',
     'PISMO_KLAUDU_EDINOE_YADRO.md',
     'ACCEPTANCE_NEXXUS_CORE_TZ.md',
     'PROTOCOL_WIRE_SPEC.md',
