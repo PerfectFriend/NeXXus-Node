@@ -30,19 +30,19 @@ export const ManualView: React.FC<ManualViewProps> = ({
       <div className="relative rounded-2xl overflow-hidden border border-cyan-500/30 shadow-2xl group">
         <img
           src="/assets/images/banner-top.jpg"
-          alt="NeXXUs Sovereign Security Citadel — Cyberpunk Gaudí Van Gogh Banner"
+          alt="NeXXUs Sovereign Crypto-Cloud Hosting — Cyberpunk Gaudí Van Gogh Banner"
           className="w-full h-48 sm:h-64 md:h-80 object-cover object-center transition duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-6">
           <div className="flex items-center gap-2 mb-2">
             <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold border border-cyan-500/40 backdrop-blur-md">
-              СУВЕРЕННЫЙ ПЕРИМЕТР • КИБЕРПАНК × ГАУДИ × ВАН ГОГ
+              СУВЕРЕННОЕ КРИПТООБЛАКО • КИБЕРПАНК × ГАУДИ × ВАН ГОГ
             </span>
-            <span className="text-xs text-amber-300 font-mono hidden sm:inline-block">Автоматическая Охрана Объектов</span>
+            <span className="text-xs text-amber-300 font-mono hidden sm:inline-block">Децентрализованный Хостинг Секретов</span>
           </div>
           <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">
-            NeXXUs Autonomous Sentinel Citadel
+            NeXXUs Zero-Knowledge Crypto-Cloud
           </h2>
         </div>
       </div>
@@ -61,7 +61,7 @@ export const ManualView: React.FC<ManualViewProps> = ({
               Суверенное Руководство NeXXUs
             </h1>
             <p className="text-slate-300 text-sm max-w-3xl leading-relaxed">
-              Полное руководство для операторов безопасности и системных администраторов нод: от первого запуска и квантования файлов до автономной охраны периметра, настройки systemd, мониторинга PoR и аварийного самоисцеления.
+              Полное руководство для пользователей сейфа и системных администраторов хостинг-нод: от первого запуска и шифрования секретов до развёртывания демона в Linux, настройки systemd, мониторинга PoR и аварийного восстановления.
             </p>
           </div>
 
@@ -542,22 +542,22 @@ export const ManualView: React.FC<ManualViewProps> = ({
       <div className="relative rounded-2xl overflow-hidden border border-emerald-500/30 shadow-2xl group mt-12">
         <img
           src="/assets/images/banner-bottom.jpg"
-          alt="NeXXUs Autonomous Sentinel Guard — Cyberpunk Gaudí Van Gogh Banner"
+          alt="NeXXUs Decentralized Swarm — Cyberpunk Gaudí Van Gogh Banner"
           className="w-full h-48 sm:h-64 md:h-80 object-cover object-center transition duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-6">
           <div className="flex items-center gap-2 mb-2">
             <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold border border-emerald-500/40 backdrop-blur-md">
-              СУВЕРЕННЫЙ СТОРОЖЕВОЙ РОЙ
+              СУВЕРЕННЫЙ РОЙ ХРАНЕНИЯ
             </span>
-            <span className="text-xs text-cyan-300 font-mono hidden sm:inline-block">24/7/365 Автономный Мониторинг Периметра</span>
+            <span className="text-xs text-cyan-300 font-mono hidden sm:inline-block">24/7/365 Независимый P2P-Хостинг</span>
           </div>
           <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">
-            NeXXUs Sentinel Swarm • Бескомпромиссная Автоматическая Защита
+            NeXXUs Crypto-Cloud Swarm • Бескомпромиссная Защита Секретов
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-2xl mt-1 font-mono">
-            Защита распределённых физических и цифровых объектов криптографическими инвариантами, Tor v3 ячеистой сетью и помехоустойчивым кворумом.
+            Хранение конфиденциальных данных и секретов с гарантией математической недосягаемости для провайдеров, блокировок и цензуры.
           </p>
         </div>
       </div>
