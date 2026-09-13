@@ -13,7 +13,8 @@ DIRECTORIES = [
     'scripts',
     'test',
     'contracts',
-    'nexxus-vectors'
+    'nexxus-vectors',
+    'assets'
 ]
 
 EXPLICIT_FILES = [

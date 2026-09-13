@@ -26,6 +26,27 @@ export const ManualView: React.FC<ManualViewProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      {/* Visual Header Banner (Cyberpunk + Gaudí + Van Gogh) */}
+      <div className="relative rounded-2xl overflow-hidden border border-cyan-500/30 shadow-2xl group">
+        <img
+          src="/assets/images/banner-top.jpg"
+          alt="NeXXUs Sovereign Security Citadel — Cyberpunk Gaudí Van Gogh Banner"
+          className="w-full h-48 sm:h-64 md:h-80 object-cover object-center transition duration-700 group-hover:scale-105"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold border border-cyan-500/40 backdrop-blur-md">
+              СУВЕРЕННЫЙ ПЕРИМЕТР • КИБЕРПАНК × ГАУДИ × ВАН ГОГ
+            </span>
+            <span className="text-xs text-amber-300 font-mono hidden sm:inline-block">Автоматическая Охрана Объектов</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">
+            NeXXUs Autonomous Sentinel Citadel
+          </h2>
+        </div>
+      </div>
+
       {/* Top Hero Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-emerald-950/40 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -40,7 +61,7 @@ export const ManualView: React.FC<ManualViewProps> = ({
               Суверенное Руководство NeXXUs
             </h1>
             <p className="text-slate-300 text-sm max-w-3xl leading-relaxed">
-              Полное руководство для рядовых пользователей и системных администраторов нод: от первого запуска и шифрования файлов до развёртывания демона в Linux, настройки systemd, мониторинга PoR и аварийного восстановления.
+              Полное руководство для операторов безопасности и системных администраторов нод: от первого запуска и квантования файлов до автономной охраны периметра, настройки systemd, мониторинга PoR и аварийного самоисцеления.
             </p>
           </div>
 
@@ -49,10 +70,10 @@ export const ManualView: React.FC<ManualViewProps> = ({
               href="/nexxus-v2.0-source-and-audit.zip"
               download="nexxus-v2.0-source-and-audit.zip"
               className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs font-mono transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-              title="Полный архив исходников, журнала 'Курилка', golden-векторов, спецификаций и переписки (339 KB)"
+              title="Полный дистрибутив: баннеры Киберпанк-Гауди-Ван Гог, README, Курилка, векторы и исходники (5.4 MB)"
             >
               <Download className="w-4 h-4" />
-              <span>Архив v2.0 + Курилка (339 KB)</span>
+              <span>Архив v2.0 + Баннеры (5.4 MB)</span>
             </a>
             <a
               href="/packages/nexxus-node_latest_amd64.deb"
@@ -517,6 +538,29 @@ export const ManualView: React.FC<ManualViewProps> = ({
           </div>
         </div>
       )}
+      {/* Bottom Visual Sentinel Banner (Cyberpunk + Gaudí + Van Gogh) */}
+      <div className="relative rounded-2xl overflow-hidden border border-emerald-500/30 shadow-2xl group mt-12">
+        <img
+          src="/assets/images/banner-bottom.jpg"
+          alt="NeXXUs Autonomous Sentinel Guard — Cyberpunk Gaudí Van Gogh Banner"
+          className="w-full h-48 sm:h-64 md:h-80 object-cover object-center transition duration-700 group-hover:scale-105"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold border border-emerald-500/40 backdrop-blur-md">
+              СУВЕРЕННЫЙ СТОРОЖЕВОЙ РОЙ
+            </span>
+            <span className="text-xs text-cyan-300 font-mono hidden sm:inline-block">24/7/365 Автономный Мониторинг Периметра</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">
+            NeXXUs Sentinel Swarm • Бескомпромиссная Автоматическая Защита
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl mt-1 font-mono">
+            Защита распределённых физических и цифровых объектов криптографическими инвариантами, Tor v3 ячеистой сетью и помехоустойчивым кворумом.
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
