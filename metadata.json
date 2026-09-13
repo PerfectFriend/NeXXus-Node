@@ -1,0 +1,8 @@
+{
+  "name": "Remix NeXXUs - Decentralized Storage \u0026 Onion Network",
+  "description": "Transforms spare smartphones into decentralized encrypted storage nodes with BIP-39 keys, 16KB 4x-redundancy chunking, v2ray+Tor onion routing, SMP/xFTP messenger, and internal DEX.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

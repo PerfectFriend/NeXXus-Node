@@ -1,0 +1,425 @@
+import { NodeRecord, VaultFile, Bip39Identity, ChatMessage, OrderBookItem, SystemPermissionItem } from '../types/nexxus';
+import { deriveIdentityFromMnemonic } from '../utils/bip39';
+
+export const INITIAL_MNEMONIC: string[] = [
+  "shield", "orbit", "quantum", "cipher", "matrix", "battery",
+  "whisper", "antenna", "harbor", "gravity", "beacon", "voyage"
+];
+
+export const INITIAL_IDENTITY: Bip39Identity = {
+  mnemonic: INITIAL_MNEMONIC,
+  ...deriveIdentityFromMnemonic(INITIAL_MNEMONIC),
+  createdAt: Date.now() - 42 * 24 * 3600 * 1000,
+  balances: {
+    nexx: 4850.25,
+    ton: 142.8,
+    usdc: 320.0,
+    eth: 0.155,
+    btc: 0.0084,
+  },
+  unlockedNexx: 1850.25, // Available for DEX sell or swap
+  lockedNexx8Weeks: 3000.00, // Locked in 56-day vesting
+  vestingBatches: [
+    {
+      id: 'vest_batch_1',
+      amount: 450.0,
+      earnedAt: Date.now() - 52 * 24 * 3600 * 1000,
+      unlocksAt: Date.now() + 4 * 24 * 3600 * 1000, // Unlocks in 4 days!
+      daysRemaining: 4,
+      sourceNodeId: 'node-thinkpad-x230',
+      sourceNodeName: 'ThinkPad X230 (Debian Server)',
+      foreignChunksGb: 124.5,
+      status: 'locked',
+    },
+    {
+      id: 'vest_batch_2',
+      amount: 820.0,
+      earnedAt: Date.now() - 36 * 24 * 3600 * 1000,
+      unlocksAt: Date.now() + 20 * 24 * 3600 * 1000, // Unlocks in 20 days
+      daysRemaining: 20,
+      sourceNodeId: 'node-thinkpad-x230',
+      sourceNodeName: 'ThinkPad X230 (Debian Server)',
+      foreignChunksGb: 124.5,
+      status: 'locked',
+    },
+    {
+      id: 'vest_batch_3',
+      amount: 1100.0,
+      earnedAt: Date.now() - 21 * 24 * 3600 * 1000,
+      unlocksAt: Date.now() + 35 * 24 * 3600 * 1000, // Unlocks in 35 days
+      daysRemaining: 35,
+      sourceNodeId: 'node-samsung-s9',
+      sourceNodeName: 'Galaxy S9 (Spare Phone #1)',
+      foreignChunksGb: 21.8,
+      status: 'locked',
+    },
+    {
+      id: 'vest_batch_4',
+      amount: 630.0,
+      earnedAt: Date.now() - 7 * 24 * 3600 * 1000,
+      unlocksAt: Date.now() + 49 * 24 * 3600 * 1000, // Unlocks in 49 days
+      daysRemaining: 49,
+      sourceNodeId: 'node-pixel3',
+      sourceNodeName: 'Pixel 3 XL (Living Room Shelf)',
+      foreignChunksGb: 21.8,
+      status: 'locked',
+    },
+  ],
+  subscribedStorageGb: 32, // Extra 32GB bought in cloud
+  dailyStorageExpenseNexx: 41.6, // Paid to Treasury daily
+  treasury: {
+    poolBalanceNexx: 184500.0,
+    dailyCollectedNexx: 41.6,
+    dailyDistributedNexx: 210.5,
+    totalSubscribedStorageGb: 1420,
+    totalPaidForeignGb: 8940,
+    ratePerGbPerDay: 1.25,
+    lastEpochTimestamp: Date.now() - 6 * 3600 * 1000,
+    epochNumber: 154,
+  },
+};
+
+export const INITIAL_PERMISSIONS: SystemPermissionItem[] = [
+  {
+    key: 'storage_access',
+    title: 'All-Files Storage Access (Scoped / ExtStorage)',
+    description: 'Required to allocate 16GB storage sections and direct block reads.',
+    granted: true,
+    critical: true,
+  },
+  {
+    key: 'ignore_battery_optimizations',
+    title: 'Disable Battery Optimization (Doze Bypass)',
+    description: 'Keeps node daemon running 24/7 on Wi-Fi without Android OS sleeping it.',
+    granted: true,
+    critical: true,
+  },
+  {
+    key: 'wake_lock',
+    title: 'Partial CPU WakeLock & Wi-Fi Lock',
+    description: 'Ensures v2ray/tor circuits and 16KB chunk syncing never freeze.',
+    granted: true,
+    critical: true,
+  },
+  {
+    key: 'foreground_service',
+    title: 'Persistent Foreground Service Daemon',
+    description: 'Shows silent ongoing notification to prevent OS process killer.',
+    granted: true,
+    critical: true,
+  },
+  {
+    key: 'usb_otg_readwrite',
+    title: 'External OTG & SD Card Mounting',
+    description: 'Allows attaching external drives to expand free 1/8th cloud storage.',
+    granted: false,
+    critical: false,
+  },
+];
+
+export const INITIAL_NODES: NodeRecord[] = [
+  {
+    id: 'node-samsung-s9',
+    name: 'Galaxy S9 (Spare Phone #1)',
+    deviceType: 'android',
+    model: 'Samsung SM-G960F (Exynos 9810)',
+    isOnline: true,
+    isCurrentDevice: true,
+    onionAddress: 'nexxus9k2m4p7w1z6x8v3b5n0q2l4j6h8f0d2s4a6c8e0g2i4k6m8.onion:9050',
+    v2rayActive: true,
+    torActive: true,
+    smpServerRunning: true,
+    xFTPRelayRunning: true,
+    batteryLevel: 98,
+    isCharging: true,
+    temperatureC: 34.2,
+    wifiSsid: 'Home_Fiber_5G_IoT',
+    wifiSignalDbm: -48,
+    internalTotalGb: 64,
+    internalFreeGb: 49.8,
+    autoModeEnabled: true,
+    reservedSections16Gb: 3, // 3 x 16GB = 48GB reserved
+    totalStorageAllocatedGb: 48,
+    
+    // 16GB -> 2GB Base barter + Expanded Storage
+    baseSection16Gb: 16,
+    baseSecretVaultGrantedGb: 2.0,
+    expandedStorageAllocatedGb: 32,
+    actualForeignChunksStoredGb: 21.8, // Paid for 21.8GB
+    emptyUnusedAllocatedGb: 10.2, // 0 pay for empty 10.2GB!
+    dailyEstimatedNexxEarnings: 27.25, // 21.8 * 1.25
+
+    personalVaultQuotaGb: 6.0, // 2GB base + (32 * 1/8) = 6GB personal vault
+    personalVaultUsedGb: 1.84,
+    reputationScore: 885,
+    reputationTier: 'Elite Swarm (851-1000)',
+    consecutiveDaysWithoutPenalty: 28, // 2 days away from 30d reward!
+    penaltiesCount: 0,
+    offlineSince: null,
+    graceExpiresAt: null,
+    storedChunksCount: 14280,
+    replicatedChunksServed: 8490,
+    bandwidthSharedMb: 4120.4,
+    externalDevices: [
+      {
+        id: 'ext_sd_128',
+        name: 'SanDisk Extreme 128GB MicroSD',
+        type: 'sd_card',
+        capacityGb: 128,
+        mounted: false,
+      }
+    ],
+  },
+  {
+    id: 'node-pixel3',
+    name: 'Pixel 3 XL (Living Room Shelf)',
+    deviceType: 'android',
+    model: 'Google Pixel 3 XL (Snapdragon 845)',
+    isOnline: true,
+    isCurrentDevice: false,
+    onionAddress: 'nexxus3px8q1w4e7r0t2y5u8i1o4p7a0s3d6f9g2h5j8k1l4z7x0c.onion:9050',
+    v2rayActive: true,
+    torActive: true,
+    smpServerRunning: false,
+    xFTPRelayRunning: true,
+    batteryLevel: 100,
+    isCharging: true,
+    temperatureC: 32.8,
+    wifiSsid: 'Home_Fiber_5G_IoT',
+    wifiSignalDbm: -54,
+    internalTotalGb: 64,
+    internalFreeGb: 52.1,
+    autoModeEnabled: true,
+    reservedSections16Gb: 3, // 48 GB
+    totalStorageAllocatedGb: 48,
+    
+    baseSection16Gb: 16,
+    baseSecretVaultGrantedGb: 2.0,
+    expandedStorageAllocatedGb: 32,
+    actualForeignChunksStoredGb: 21.8,
+    emptyUnusedAllocatedGb: 10.2,
+    dailyEstimatedNexxEarnings: 27.25,
+
+    personalVaultQuotaGb: 6.0,
+    personalVaultUsedGb: 2.1,
+    reputationScore: 790,
+    reputationTier: 'Guardian Node (601-850)',
+    consecutiveDaysWithoutPenalty: 14,
+    penaltiesCount: 0,
+    offlineSince: null,
+    graceExpiresAt: null,
+    storedChunksCount: 12800,
+    replicatedChunksServed: 6150,
+    bandwidthSharedMb: 3210.8,
+    externalDevices: [],
+  },
+  {
+    id: 'node-beelink-ser9',
+    name: 'Beelink SER9 (Ubuntu Server 24.04 LTS)',
+    deviceType: 'desktop_linux',
+    model: 'AMD Ryzen AI 9 HX 370, 24GB LPDDR5X RAM, 500GB NVMe PCIe 4.0',
+    isOnline: true,
+    isCurrentDevice: false,
+    onionAddress: 'nexxus9ser9a1b2c3d4e5f60718293a4b5c6d7e8f90123456789a.onion:9050',
+    v2rayActive: true,
+    torActive: true,
+    smpServerRunning: true,
+    xFTPRelayRunning: true,
+    batteryLevel: 100,
+    isCharging: true,
+    temperatureC: 38.4,
+    wifiSsid: 'Ethernet_2.5Gbps_LAN',
+    wifiSignalDbm: -25,
+    internalTotalGb: 500,
+    internalFreeGb: 420.0,
+    autoModeEnabled: true,
+    reservedSections16Gb: 24, // 24 x 16GB = 384GB reserved (leaves 116GB for Ubuntu OS, Tor, Swap)
+    totalStorageAllocatedGb: 384,
+    
+    baseSection16Gb: 16,
+    baseSecretVaultGrantedGb: 2.0,
+    expandedStorageAllocatedGb: 368,
+    actualForeignChunksStoredGb: 254.6,
+    emptyUnusedAllocatedGb: 113.4, // «За пустоту не платим»: 0 начислений за 113.4GB
+    dailyEstimatedNexxEarnings: 318.25, // 254.6 * 1.25 NEXX/day
+
+    personalVaultQuotaGb: 48.0, // 2GB база + (368 * 1/8) = 48GB личного сейфа!
+    personalVaultUsedGb: 12.8,
+    reputationScore: 985,
+    reputationTier: 'Elite Swarm (851-1000)',
+    consecutiveDaysWithoutPenalty: 92,
+    penaltiesCount: 0,
+    offlineSince: null,
+    graceExpiresAt: null,
+    storedChunksCount: 98400,
+    replicatedChunksServed: 62100,
+    bandwidthSharedMb: 45800.0,
+    externalDevices: [
+      {
+        id: 'nvme_pool_0',
+        name: 'Internal PCIe 4.0 NVMe SSD 500GB',
+        type: 'external_ssd',
+        capacityGb: 500,
+        mounted: true,
+      }
+    ],
+  },
+  {
+    id: 'node-redmi-note7',
+    name: 'Redmi Note 7 (Office Stand)',
+    deviceType: 'android',
+    model: 'Xiaomi Redmi Note 7 (SD660)',
+    isOnline: true,
+    isCurrentDevice: false,
+    onionAddress: 'nexxusrm7a4b8c2d6e0f4g8h2i6j0k4l8m2n6o0p4q8r2s6t0u4v.onion:9050',
+    v2rayActive: true,
+    torActive: true,
+    smpServerRunning: false,
+    xFTPRelayRunning: false,
+    batteryLevel: 89,
+    isCharging: true,
+    temperatureC: 35.1,
+    wifiSsid: 'Office_Guest_WPA3',
+    wifiSignalDbm: -62,
+    internalTotalGb: 32,
+    internalFreeGb: 18.4,
+    autoModeEnabled: true,
+    reservedSections16Gb: 1, // 1 x 16GB = 16GB reserved
+    totalStorageAllocatedGb: 16,
+    
+    baseSection16Gb: 16,
+    baseSecretVaultGrantedGb: 2.0, // Unbreakable 2GB vault
+    expandedStorageAllocatedGb: 0, // No extra expansion
+    actualForeignChunksStoredGb: 0, // Only base barter
+    emptyUnusedAllocatedGb: 0,
+    dailyEstimatedNexxEarnings: 0,
+
+    personalVaultQuotaGb: 2.0,
+    personalVaultUsedGb: 0.6,
+    reputationScore: 540,
+    reputationTier: 'Reliable Node (301-600)',
+    consecutiveDaysWithoutPenalty: 9,
+    penaltiesCount: 1,
+    offlineSince: null,
+    graceExpiresAt: null,
+    storedChunksCount: 4200,
+    replicatedChunksServed: 1800,
+    bandwidthSharedMb: 980.5,
+    externalDevices: [],
+  }
+];
+
+export const INITIAL_FILES: VaultFile[] = [
+  {
+    id: 'file_001_recovery_keys',
+    name: 'recovery_credentials_coldstorage.enc',
+    sizeBytes: 48 * 1024, // 48 KB -> 3 chunks
+    mimeType: 'application/octet-stream',
+    chunksCount: 3,
+    uploadedAt: Date.now() - 3 * 24 * 3600 * 1000,
+    encryptionAlgorithm: 'ChaCha20-Poly1305',
+    rootHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    chunks: [
+      {
+        chunkId: 'chk_rec_0000',
+        fileId: 'file_001_recovery_keys',
+        chunkIndex: 0,
+        sizeBytes: 16384,
+        hash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+        replicaNodes: ['node-samsung-s9', 'node-pixel3', 'node-thinkpad-x230', 'node-redmi-note7', 'node-backup-01', 'node-backup-02'],
+        status: 'synced',
+      },
+      {
+        chunkId: 'chk_rec_0001',
+        fileId: 'file_001_recovery_keys',
+        chunkIndex: 1,
+        sizeBytes: 16384,
+        hash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8',
+        replicaNodes: ['node-samsung-s9', 'node-thinkpad-x230', 'node-pixel3', 'node-redmi-note7', 'node-backup-01', 'node-backup-02'],
+        status: 'synced',
+      },
+      {
+        chunkId: 'chk_rec_0002',
+        fileId: 'file_001_recovery_keys',
+        chunkIndex: 2,
+        sizeBytes: 16384,
+        hash: '4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a',
+        replicaNodes: ['node-pixel3', 'node-thinkpad-x230', 'node-samsung-s9', 'node-redmi-note7', 'node-backup-01', 'node-backup-02'],
+        status: 'synced',
+      }
+    ]
+  },
+  {
+    id: 'file_002_family_archive',
+    name: 'decentralized_mesh_blueprint.pdf',
+    sizeBytes: 128 * 1024, // 128 KB -> 8 chunks
+    mimeType: 'application/pdf',
+    chunksCount: 8,
+    uploadedAt: Date.now() - 7 * 24 * 3600 * 1000,
+    encryptionAlgorithm: 'ChaCha20-Poly1305',
+    rootHash: 'ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d',
+    chunks: Array.from({ length: 8 }, (_, i) => ({
+      chunkId: `chk_mesh_${i.toString().padStart(4, '0')}`,
+      fileId: 'file_002_family_archive',
+      chunkIndex: i,
+      sizeBytes: 16384,
+      hash: `8f4b2277d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdab${i}a`,
+      replicaNodes: ['node-samsung-s9', 'node-thinkpad-x230', 'node-pixel3', 'node-redmi-note7', 'node-backup-01', 'node-backup-02'],
+      status: 'synced',
+    }))
+  }
+];
+
+export const INITIAL_MESSAGES: ChatMessage[] = [
+  {
+    id: 'msg_1',
+    senderId: 'contact_alice',
+    senderName: 'Alice (Guardian #4)',
+    senderOnion: 'alice4p8q1w4e7r0t2y5u8i1o4p7a0s3d6f9g2h5j8k1l4z7x0c.onion:9050',
+    recipientId: 'current_user',
+    text: 'Привет! Моя нода на старом Xiaomi 24/7 держит приватный NeXXUs сервер. Трафик через Tor v3 circuit устойчивый.',
+    timestamp: Date.now() - 45 * 60 * 1000,
+    protocol: 'SMP',
+    isRelayedViaPrivateServer: true,
+    status: 'delivered',
+  },
+  {
+    id: 'msg_2',
+    senderId: 'current_user',
+    senderName: 'Me',
+    senderOnion: 'nexxus9k2m4p7w1z6x8v3b5n0q2l4j6h8f0d2s4a6c8e0g2i4k6m8.onion:9050',
+    recipientId: 'contact_alice',
+    text: 'Отлично! Я подключил старый Galaxy S9 на 64GB и расширил MicroSD на 128GB. Получил уже больше 20GB приватного криптохранилища.',
+    timestamp: Date.now() - 25 * 60 * 1000,
+    protocol: 'SMP',
+    isRelayedViaPrivateServer: true,
+    status: 'delivered',
+  },
+  {
+    id: 'msg_3',
+    senderId: 'contact_alice',
+    senderName: 'Alice (Guardian #4)',
+    senderOnion: 'alice4p8q1w4e7r0t2y5u8i1o4p7a0s3d6f9g2h5j8k1l4z7x0c.onion:9050',
+    recipientId: 'current_user',
+    text: 'Отправляю тебе конфигурацию xFTP для тестового роутинга чанков по 16Кб.',
+    timestamp: Date.now() - 5 * 60 * 1000,
+    protocol: 'xFTP',
+    attachment: {
+      name: 'swarm_routing_table.xftp',
+      sizeBytes: 32768,
+      chunksCount: 2,
+      fileId: 'file_xftp_conf',
+    },
+    isRelayedViaPrivateServer: true,
+    status: 'delivered',
+  }
+];
+
+export const INITIAL_ORDER_BOOK: OrderBookItem[] = [
+  { id: 'ob_1', type: 'sell', pair: 'NEXX/USDC', price: 0.285, amount: 5000, total: 1425.0, timestamp: Date.now() - 120000 },
+  { id: 'ob_2', type: 'sell', pair: 'NEXX/USDC', price: 0.280, amount: 12000, total: 3360.0, timestamp: Date.now() - 180000 },
+  { id: 'ob_3', type: 'sell', pair: 'NEXX/USDC', price: 0.274, amount: 8500, total: 2329.0, timestamp: Date.now() - 240000 },
+  { id: 'ob_4', type: 'buy', pair: 'NEXX/USDC', price: 0.268, amount: 10400, total: 2787.2, timestamp: Date.now() - 80000 },
+  { id: 'ob_5', type: 'buy', pair: 'NEXX/USDC', price: 0.262, amount: 18000, total: 4716.0, timestamp: Date.now() - 140000 },
+  { id: 'ob_6', type: 'buy', pair: 'NEXX/USDC', price: 0.255, amount: 25000, total: 6375.0, timestamp: Date.now() - 320000 },
+];
