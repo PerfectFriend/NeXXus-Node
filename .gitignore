@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+*.zip
+*.deb
+*.tar.gz
+*.tgz
+public/packages/

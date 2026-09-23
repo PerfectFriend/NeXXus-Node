@@ -2,68 +2,28 @@ import { sha256, sha512 } from '@noble/hashes/sha2.js';
 import { pbkdf2 } from '@noble/hashes/pbkdf2.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
+import { generateMnemonic, validateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 
-// BIP-39 English Wordlist excerpt (standard English BIP-39 subset)
-export const BIP39_WORDS: string[] = [
-  "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse",
-  "access", "accident", "account", "accuse", "achieve", "acid", "acoustic", "acquire", "across", "act",
-  "action", "actor", "actress", "actual", "adapt", "add", "addict", "address", "adjust", "admit",
-  "adult", "advance", "advice", "aerobic", "affair", "afford", "afraid", "again", "age", "agent",
-  "agree", "ahead", "aim", "air", "airport", "aisle", "alarm", "album", "alcohol", "alert",
-  "alien", "all", "alley", "allow", "almost", "alone", "alpha", "already", "also", "alter",
-  "always", "amateur", "amazing", "among", "amount", "amused", "analyst", "anchor", "ancient", "anger",
-  "angle", "angry", "animal", "ankle", "announce", "annual", "another", "answer", "antenna", "antique",
-  "anxiety", "any", "apart", "apology", "appear", "apple", "approve", "april", "arch", "arctic",
-  "area", "arena", "argue", "arm", "armed", "armor", "army", "around", "arrange", "arrest",
-  "arrive", "arrow", "art", "artefact", "artist", "artwork", "ask", "aspect", "assault", "asset",
-  "assist", "assume", "asthma", "athlete", "atom", "attack", "attend", "attitude", "attract", "auction",
-  "audit", "august", "aunt", "author", "auto", "autumn", "average", "avocado", "avoid", "awake",
-  "aware", "away", "awesome", "awful", "awkward", "axis", "baby", "bachelor", "bacon", "badge",
-  "bag", "balance", "balcony", "ball", "bamboo", "banana", "banner", "bar", "barely", "bargain",
-  "barrel", "base", "basic", "basket", "battle", "beach", "bean", "beauty", "because", "become",
-  "beef", "before", "begin", "behave", "behind", "believe", "below", "belt", "bench", "benefit",
-  "best", "betray", "better", "between", "beyond", "bicycle", "bid", "bike", "bind", "biology",
-  "bird", "birth", "bitter", "black", "blade", "blame", "blanket", "blast", "bleak", "bless",
-  "blind", "blood", "blossom", "blouse", "blue", "blur", "blush", "board", "boat", "body",
-  "boil", "bomb", "bone", "bonus", "book", "boost", "border", "boring", "borrow", "boss",
-  "bounce", "box", "boy", "bracket", "brain", "brand", "brass", "brave", "bread", "breeze",
-  "brick", "bridge", "brief", "bright", "bring", "brisk", "broccoli", "broken", "bronze", "broom",
-  "brother", "brown", "brush", "bubble", "buddy", "budget", "buffalo", "build", "bulb", "bulk",
-  "bullet", "bundle", "bunker", "burden", "burger", "burst", "bus", "business", "busy", "butter",
-  "buyer", "buzz", "cabbage", "cabin", "cable", "cactus", "cage", "cake", "call", "calm",
-  "camera", "camp", "can", "canal", "cancel", "candy", "cannon", "canoe", "canvas", "canyon",
-  "capable", "capital", "captain", "car", "carbon", "card", "cargo", "carpet", "carry", "cart",
-  "case", "cash", "casino", "castle", "casual", "cat", "catalog", "catch", "category", "cattle",
-  "caught", "cause", "caution", "cave", "ceiling", "celery", "cement", "census", "century", "cereal",
-  "certain", "chair", "chalk", "champion", "change", "chaos", "chapter", "charge", "chase", "chat",
-  "cheap", "check", "cheese", "chef", "cherry", "chest", "chicken", "chief", "child", "chimney",
-  "choice", "choose", "chronic", "chuckle", "chunk", "churn", "cider", "cigar", "cinnamon", "circle",
-  "citizen", "city", "civil", "claim", "clap", "clarify", "claw", "clay", "clean", "clerk",
-  "clever", "click", "client", "cliff", "climb", "clinic", "clip", "clock", "clog", "close",
-  "cloth", "cloud", "clown", "club", "clump", "cluster", "clutch", "coach", "coast", "coconut",
-  "code", "coffee", "coil", "coin", "collect", "color", "column", "combine", "come", "comfort",
-  "comic", "common", "company", "concert", "conduct", "confirm", "congress", "connect", "consider", "control",
-  "convince", "cook", "cool", "copper", "copy", "coral", "core", "corn", "correct", "cost",
-  "cotton", "couch", "country", "couple", "course", "cousin", "cover", "coyote", "crack", "cradle",
-  "craft", "cram", "crane", "crash", "crater", "crawl", "crazy", "cream", "credit", "creek",
-  "crew", "cricket", "crime", "crisp", "critic", "crop", "cross", "crouch", "crowd", "crucial",
-  "cruel", "cruise", "crumble", "crunch", "crush", "cry", "crystal", "cube", "culture", "cup",
-  "cupboard", "curious", "current", "curtain", "curve", "cushion", "custom", "cute", "cycle", "dad"
-];
+// Full 2048-word standard BIP-39 English Wordlist from @scure/bip39
+export const BIP39_WORDS: string[] = wordlist;
 
 /**
- * Generates a standard 12-word BIP-39 mnemonic phrase
+ * Generates a standard 12-word BIP-39 mnemonic phrase using CSPRNG entropy (128-bit)
+ * compliant with BIP-39 specification (full 2048 words + SHA-256 checksum).
  */
 export function generateBip39Mnemonic(): string[] {
-  const words: string[] = [];
-  const wordCount = 12;
-  const poolSize = BIP39_WORDS.length;
+  // Standard 128-bit entropy produces 12 words with 4-bit checksum
+  const phrase = generateMnemonic(wordlist, 128);
+  return phrase.trim().split(/\s+/);
+}
 
-  for (let i = 0; i < wordCount; i++) {
-    const randomIndex = Math.floor(Math.random() * poolSize);
-    words.push(BIP39_WORDS[randomIndex]);
-  }
-  return words;
+/**
+ * Validates whether a mnemonic phrase is a valid BIP-39 phrase with correct checksum
+ */
+export function isValidBip39Mnemonic(words: string[]): boolean {
+  const phrase = words.join(' ').trim();
+  return validateMnemonic(phrase, wordlist);
 }
 
 /**

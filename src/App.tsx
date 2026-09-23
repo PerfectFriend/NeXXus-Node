@@ -401,6 +401,7 @@ export default function App() {
           <VaultView
             files={files}
             onAddFile={handleAddFile}
+            onUpdateFiles={setFiles}
             nodes={nodes}
             identity={identity}
             totalVaultQuotaGb={totalVaultQuotaGb}
@@ -412,6 +413,8 @@ export default function App() {
           <SwarmFleetView
             nodes={nodes}
             identity={identity}
+            vaultFiles={files}
+            onUpdateFiles={setFiles}
             onToggleNodeOnline={handleRestoreNode}
             onSimulateEmergencyGrace={handleSimulateEmergencyGrace}
             onExpireGraceNow={handleExpireGraceNow}

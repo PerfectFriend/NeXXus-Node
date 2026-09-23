@@ -136,7 +136,11 @@ export function generatePorChallenge(fileRootHash: string, chunkCount: number): 
   const randomBytes = new Uint8Array(32);
   crypto.getRandomValues(randomBytes);
   const challengeSeedHex = bytesToHex(randomBytes);
-  const chunkIndex = Math.floor(Math.random() * Math.max(1, chunkCount));
+  
+  // Use CSPRNG to pick chunk index uniformly
+  const indexBuf = new Uint32Array(1);
+  crypto.getRandomValues(indexBuf);
+  const chunkIndex = indexBuf[0] % Math.max(1, chunkCount);
 
   return {
     challengeId: `por_ch_${Date.now()}_${chunkIndex}`,

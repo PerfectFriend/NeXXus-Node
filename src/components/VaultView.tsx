@@ -10,10 +10,12 @@ import { getAllChunksForFile } from '../utils/indexedDbStore';
 import { calculateDynamicVaultQuota, evaluateDegradationSchedule, calculateAntiLoopModel } from '../utils/storageManager';
 import { deriveBipSplitKeys } from '../utils/bip39';
 import { ErasureCodingLabModal } from './ErasureCodingLabModal';
+import { NetworkRepairModal } from './NetworkRepairModal';
 
 interface VaultViewProps {
   files: VaultFile[];
   onAddFile: (file: VaultFile) => void;
+  onUpdateFiles?: (files: VaultFile[]) => void;
   nodes: NodeRecord[];
   identity: Bip39Identity;
   totalVaultQuotaGb: number;
@@ -23,6 +25,7 @@ interface VaultViewProps {
 export const VaultView: React.FC<VaultViewProps> = ({
   files,
   onAddFile,
+  onUpdateFiles,
   nodes,
   identity,
   totalVaultQuotaGb,
@@ -40,6 +43,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [retrievalStatusText, setRetrievalStatusText] = useState<string>('');
   const [isDecryptionComplete, setIsDecryptionComplete] = useState<boolean>(false);
   const [isErasureLabOpen, setIsErasureLabOpen] = useState<boolean>(false);
+  const [isRepairModalOpen, setIsRepairModalOpen] = useState<boolean>(false);
 
   // Derive Vault ChaCha20 key from BIP-39 mnemonic
   const splitKeys = deriveBipSplitKeys(identity.mnemonic);
@@ -138,7 +142,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
       if (storedChunks && storedChunks.length > 0) {
         // Reassemble actual binary chunk slices
-        blob = new Blob(storedChunks, { type: file.mimeType || 'application/octet-stream' });
+        const blobParts: BlobPart[] = storedChunks.map(c => c.buffer.slice(c.byteOffset, c.byteOffset + c.byteLength));
+        blob = new Blob(blobParts, { type: file.mimeType || 'application/octet-stream' });
       } else {
         // Authenticated proof fallback for mock files
         const dummyContent = `[NeXXUs Decentralized Storage]\nFile: ${file.name}\nSize: ${file.sizeBytes} bytes\nRootHash: ${file.rootHash}\nAlgorithm: ${file.encryptionAlgorithm}\nReplication Factor: RF=6x\nDecrypted successfully on client device via Vault Master Key m/44'/9999'/0'/1'/0.`;
@@ -369,7 +374,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <Database className="w-5 h-5 text-emerald-400" />
             <h3 className="text-base font-bold text-white">Хранимые Файлы ({files.length})</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsRepairModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 text-xs font-mono font-semibold border border-emerald-500/40 flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Сетевой Ремонт Чанков (Live)</span>
+            </button>
             <button
               onClick={() => setIsErasureLabOpen(true)}
               className="px-3 py-1.5 rounded-lg bg-purple-950/70 hover:bg-purple-900 text-purple-300 text-xs font-mono font-semibold border border-purple-500/40 flex items-center gap-1.5 transition cursor-pointer"
@@ -627,6 +639,15 @@ export const VaultView: React.FC<VaultViewProps> = ({
         isOpen={isErasureLabOpen}
         onClose={() => setIsErasureLabOpen(false)}
         vaultChaChaKeyHex={splitKeys.vaultChaChaKeyHex}
+      />
+
+      {/* Network Repair & Rate-Limiter Modal (Live Engine) */}
+      <NetworkRepairModal
+        isOpen={isRepairModalOpen}
+        onClose={() => setIsRepairModalOpen(false)}
+        vaultFiles={files}
+        nodes={nodes}
+        onUpdateFiles={onUpdateFiles}
       />
     </div>
   );

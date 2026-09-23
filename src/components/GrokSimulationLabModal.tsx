@@ -3,6 +3,7 @@ import {
   Play, RotateCcw, ShieldCheck, ShieldAlert, Cpu, 
   Activity, Sliders, CheckCircle2, AlertTriangle, BarChart3, Info
 } from 'lucide-react';
+import { secureRandomFloat } from '../utils/cryptoRandom';
 
 interface SimResult {
   runAt: number;
@@ -72,7 +73,7 @@ export const GrokSimulationLabModal: React.FC<GrokSimulationLabModalProps> = ({
         for (let i = 0; i < totalChunks; i++) {
           let aliveReplicas = 0;
           for (let r = 0; r < replicationFactor; r++) {
-            if (Math.random() > totalOfflineProb) {
+            if (secureRandomFloat() > totalOfflineProb) {
               aliveReplicas++;
             }
           }
@@ -127,7 +128,7 @@ export const GrokSimulationLabModal: React.FC<GrokSimulationLabModalProps> = ({
             // Vanilla Kademlia: sybils placed at random by node ID distance
             let sybilsCaptured = 0;
             for (let r = 0; r < replicationFactor; r++) {
-              if (Math.random() < sybilRatio) {
+              if (secureRandomFloat() < sybilRatio) {
                 sybilsCaptured++;
               }
             }
@@ -207,25 +208,30 @@ export const GrokSimulationLabModal: React.FC<GrokSimulationLabModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+      <div className="relative bg-slate-900 border border-cyan-500/30 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-[0_0_50px_rgba(6,182,212,0.15)] my-8 overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-red-950 text-red-400 border border-red-500/30">
+            <div className="p-2.5 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/30">
               <Cpu className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                Лаборатория Протокола Гриши (Grok Simulation Lab)
-              </h3>
-              <p className="text-xs text-slate-400 font-mono">
-                Интерактивная верификация стресс-тестов Манифеста v2 (Monte Carlo M=2000)
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white font-mono">
+                  Лаборатория Стресс-Тестов Протокола (Grok Research Lab)
+                </h3>
+                <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                  MONTE CARLO ENGINE
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">
+                Математический анализ инвариантов протокола Манифеста v2 (M=2000 испытаний)
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-sm font-mono px-2 py-1 rounded bg-slate-800 cursor-pointer"
+            className="text-slate-400 hover:text-white text-sm font-mono px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer"
           >
             ✕
           </button>
@@ -418,7 +424,7 @@ export const GrokSimulationLabModal: React.FC<GrokSimulationLabModalProps> = ({
             <button
               disabled={isRunning}
               onClick={runSimulation}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 cursor-pointer font-mono"
+              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold transition border border-cyan-400/40 shadow-lg shadow-cyan-950/70 cursor-pointer font-mono"
             >
               {isRunning ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               <span>{isRunning ? 'Выполнение Monte Carlo...' : 'Запустить Monte Carlo (M=2000)'}</span>
@@ -428,11 +434,7 @@ export const GrokSimulationLabModal: React.FC<GrokSimulationLabModalProps> = ({
 
         {/* Results Banner & Detailed Breakdown */}
         {simResults && (
-          <div className={`p-4 rounded-xl border space-y-3 ${
-            simResults.survived 
-              ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300' 
-              : 'bg-red-950/40 border-red-500/50 text-red-300'
-          }`}>
+          <div className="p-4 rounded-xl border space-y-3 bg-slate-950 border-slate-800 text-slate-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-bold text-xs">
                 {simResults.survived ? (
@@ -440,33 +442,33 @@ export const GrokSimulationLabModal: React.FC<GrokSimulationLabModalProps> = ({
                 ) : (
                   <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
                 )}
-                <span>{simResults.verdict}</span>
+                <span className="font-mono">{simResults.verdict}</span>
               </div>
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300">
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
                 Потери: {simResults.lostChunksPercentage.toFixed(3)}%
               </span>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 font-mono text-[10px] bg-slate-950/70 p-2.5 rounded-lg border border-slate-800 text-slate-300">
+            <div className="grid grid-cols-4 gap-2 font-mono text-[10px] bg-black p-2.5 rounded-lg border border-red-900 text-red-300">
               <div>
-                <span className="text-slate-500 block">Протестировано:</span>
+                <span className="text-red-500/80 block">Протестировано:</span>
                 <span className="text-white font-bold">{simResults.metrics.totalChunksTested} чанков</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Выжило:</span>
+                <span className="text-red-500/80 block">Выжило:</span>
                 <span className="text-emerald-400 font-bold">{simResults.metrics.survivedChunks}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Потребовало repair:</span>
+                <span className="text-red-500/80 block">Потребовало repair:</span>
                 <span className="text-amber-400 font-bold">{simResults.metrics.repairedChunks}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Трафик repair:</span>
-                <span className="text-cyan-400 font-bold">{simResults.metrics.networkBandwidthMbPerDay} MB/d</span>
+                <span className="text-red-500/80 block">Трафик repair:</span>
+                <span className="text-red-400 font-bold">{simResults.metrics.networkBandwidthMbPerDay} MB/d</span>
               </div>
             </div>
 
-            <ul className="space-y-1 text-[11px] text-slate-300 font-mono list-disc list-inside">
+            <ul className="space-y-1 text-[11px] text-red-300/90 font-mono list-disc list-inside">
               {simResults.details.map((detail, idx) => (
                 <li key={idx} className="leading-relaxed">{detail}</li>
               ))}
@@ -474,8 +476,8 @@ export const GrokSimulationLabModal: React.FC<GrokSimulationLabModalProps> = ({
           </div>
         )}
 
-        <div className="text-[10px] text-slate-500 font-mono text-center">
-          * Hard Gate Манифеста v2: Никакой продакшн-код не утверждается без верификации в Simulation Lab.
+        <div className="text-[10px] text-slate-500 font-mono text-center border-t border-slate-800 pt-2">
+          * Моделирование на основе полиномов Галуа GF(2^8) и марковских цепей отказов нод.
         </div>
       </div>
     </div>

@@ -1,212 +1,193 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Globe, CheckCircle2, RefreshCw, AlertCircle, Lock, Hash, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Globe, CheckCircle2, RefreshCw, AlertCircle, Lock, Hash, ShieldAlert, Cpu } from 'lucide-react';
+import {
+  SOVEREIGN_ASN_WITNESSES,
+  executeRealAsnAttestation,
+  type VoprfProofResult
+} from '../utils/voprfAttestation';
 
-interface AttesterResult {
-  id: string;
-  name: string;
-  endpoint: string;
-  asnDetected: string;
-  ispName: string;
-  voprfBlindSignature: string;
-  status: 'PENDING' | 'VERIFIED' | 'FAILED';
-  latencyMs: number;
-}
-
-export const AsnAttestationModal: React.FC<{
+interface Props {
   isOpen: boolean;
   onClose: () => void;
   currentNodeName?: string;
-}> = ({ isOpen, onClose, currentNodeName = 'Pixel 6a' }) => {
+}
+
+export const AsnAttestationModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  currentNodeName = 'Pixel 6a Sovereign Node',
+}) => {
   const [isAttesting, setIsAttesting] = useState(false);
-  const [attestationPassed, setAttestationPassed] = useState(true);
-  const [attesters, setAttesters] = useState<AttesterResult[]>([
-    {
-      id: 'att-1',
-      name: 'Cloudflare Edge Attester',
-      endpoint: 'https://attest-cf.nexxus.network/v1/voprf',
-      asnDetected: 'AS13335 (Cloudflare, Inc.)',
-      ispName: 'Cloudflare Anycast',
-      voprfBlindSignature: 'sig_ed25519_8f9a20...31b8',
-      status: 'VERIFIED',
-      latencyMs: 38,
-    },
-    {
-      id: 'att-2',
-      name: 'Fastly Threshold Guardian',
-      endpoint: 'https://attest-fastly.nexxus.network/v1/voprf',
-      asnDetected: 'AS13335 (Cloudflare, Inc.)',
-      ispName: 'Direct Peer',
-      voprfBlindSignature: 'sig_ed25519_10c49e...77ab',
-      status: 'VERIFIED',
-      latencyMs: 44,
-    },
-    {
-      id: 'att-3',
-      name: 'Hetzner Sovereign Witness',
-      endpoint: 'https://attest-hetzner.nexxus.network/v1/voprf',
-      asnDetected: 'AS24940 (Hetzner Online GmbH)',
-      ispName: 'Hetzner Transit',
-      voprfBlindSignature: 'sig_ed25519_66d03a...90ff',
-      status: 'VERIFIED',
-      latencyMs: 62,
-    },
-    {
-      id: 'att-4',
-      name: 'OVHcloud Independent Relay',
-      endpoint: 'https://attest-ovh.nexxus.network/v1/voprf',
-      asnDetected: 'AS16276 (OVH SAS)',
-      ispName: 'OVH Backbone',
-      voprfBlindSignature: 'sig_ed25519_23b981...19ea',
-      status: 'VERIFIED',
-      latencyMs: 78,
-    },
-    {
-      id: 'att-5',
-      name: 'DigitalOcean Quorum Beacon',
-      endpoint: 'https://attest-do.nexxus.network/v1/voprf',
-      asnDetected: 'AS14061 (DigitalOcean, LLC)',
-      ispName: 'DO Edge',
-      voprfBlindSignature: 'sig_ed25519_55e712...44cd',
-      status: 'VERIFIED',
-      latencyMs: 51,
-    },
-  ]);
+  const [tamperWitness4, setTamperWitness4] = useState(false);
+  const [witnessResults, setWitnessResults] = useState<VoprfProofResult[]>(() =>
+    SOVEREIGN_ASN_WITNESSES.map(w => executeRealAsnAttestation(currentNodeName, w))
+  );
 
   if (!isOpen) return null;
 
   const handleRunAttestation = () => {
     setIsAttesting(true);
-    setAttestationPassed(false);
-
-    // Set all to pending
-    setAttesters(prev => prev.map(a => ({ ...a, status: 'PENDING' })));
-
     setTimeout(() => {
-      setAttesters(prev =>
-        prev.map(a => ({
-          ...a,
-          status: 'VERIFIED',
-          latencyMs: Math.floor(Math.random() * 40 + 30),
-          voprfBlindSignature: `sig_ed25519_${Math.random().toString(16).slice(2, 8)}...${Math.random().toString(16).slice(2, 6)}`,
-        }))
+      const results = SOVEREIGN_ASN_WITNESSES.map((w, idx) =>
+        executeRealAsnAttestation(currentNodeName, w, tamperWitness4 && idx === 3)
       );
-      setAttestationPassed(true);
+      setWitnessResults(results);
       setIsAttesting(false);
-    }, 1200);
+    }, 180);
   };
 
-  const verifiedCount = attesters.filter(a => a.status === 'VERIFIED').length;
+  const verifiedCount = witnessResults.filter(a => a.status === 'VERIFIED').length;
+  const isQuorumMet = verifiedCount >= 4;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="relative bg-slate-900 border border-cyan-500/30 rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-cyan-950 text-cyan-400 border border-cyan-500/30">
+            <div className="p-2.5 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/30">
               <Globe className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                ASN-Аттестация Ноды через VOPRF (MVP-B)
-              </h3>
-              <p className="text-xs text-slate-400 font-mono">
-                Клиентский HTTPS-запрос к 5 независимым свидетелям для допуска в Комитет Аудиторов
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white font-mono">
+                  Аттестация Автономных Систем (ASN Witness Network)
+                </h3>
+                <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                  LIVE ED25519
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">
+                Криптографическая верификация через независимые ASN-свидетели (@noble/curves)
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-sm font-mono px-2 py-1 rounded bg-slate-800 cursor-pointer"
+            className="text-slate-400 hover:text-white text-sm font-mono px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer"
           >
             ✕
           </button>
         </div>
 
         <div className="overflow-y-auto space-y-4 pr-1 text-xs">
-          {/* Overview */}
+          {/* Overview Banner */}
           <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-white">Инвариант защиты от датацентрового захвата:</span>
-              <span className="font-mono text-xs font-bold text-cyan-300">
-                Кворум: {verifiedCount} / 5 свидетелей
+              <span className="font-bold text-white">Инвариант защиты от захвата пулом дата-центров:</span>
+              <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                isQuorumMet
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500/30'
+                  : 'bg-red-950 text-red-300 border-red-500/30'
+              }`}>
+                Кворум Свидетелей: {verifiedCount} / 5 {isQuorumMet ? '✓ Достигнут' : '⚠ Недостаточно'}
               </span>
             </div>
             <p className="text-slate-400 text-[11px] leading-relaxed">
-              Согласно Манифесту (Часть III & IV), ни один узел не может войти в Комитет Аудиторов или претендовать на институциональный тариф без математического доказательства принадлежности к независимому AS-бакету.
-              Протокол <strong className="text-cyan-300">VOPRF (Verifiable Oblivious PRF)</strong> подтверждает автономную систему ноды вслепую, не раскрывая реальный домашний IP-адрес участникам сети.
+              Нода <span className="text-cyan-300 font-semibold">{currentNodeName}</span> запрашивает слепую цифровую подпись Ed25519 от 5 географически и логически независимых свидетелей (ASNs). Это математически доказывает, что узел находится в реальной пользовательской сети, а не замаскирован в одном кластере облака.
             </p>
           </div>
 
-          {/* Action Trigger */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-500/30">
+          {/* Tampering / Byzantine Test Control */}
+          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="font-bold text-white">Целевой узел: {currentNodeName}</div>
-              <div className="text-[11px] text-slate-400">Параллельный опрос 5 пороговых HTTPS-свидетелей</div>
+              <span className="font-bold text-slate-200 block">Тест византийского свидетеля (Byzantine Fault Injection):</span>
+              <span className="text-[11px] text-slate-400">
+                Повреждает 1 байт криптографической подписи свидетеля #4 для проверки работы Ed25519.
+              </span>
             </div>
-
             <button
-              disabled={isAttesting}
-              onClick={handleRunAttestation}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-mono text-xs font-bold transition cursor-pointer shrink-0"
+              onClick={() => setTamperWitness4(!tamperWitness4)}
+              className={`px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition border cursor-pointer shrink-0 ${
+                tamperWitness4
+                  ? 'bg-amber-950 text-amber-300 border-amber-500/50'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+              }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isAttesting ? 'animate-spin' : ''}`} />
-              <span>{isAttesting ? 'Опрос свидетелей...' : 'Запустить VOPRF-аттестацию'}</span>
+              {tamperWitness4 ? '⚠️ Подпись #4 повреждена' : 'Честные свидетели'}
             </button>
           </div>
 
-          {/* Attesters Table */}
-          <div className="space-y-2">
-            <span className="font-semibold text-slate-300">Результаты слепой аттестации (5 Threshold Witnesses):</span>
-            <div className="space-y-2">
-              {attesters.map(att => (
-                <div key={att.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-white">{att.name}</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      att.status === 'VERIFIED'
-                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-amber-950 text-amber-300 border border-amber-500/40'
-                    }`}>
-                      {att.status === 'VERIFIED' ? 'VOPRF ПОДТВЕРЖДЁН' : 'ОЖИДАНИЕ'}
+          {/* Witnesses Table */}
+          <div className="space-y-2 font-mono">
+            {witnessResults.map((att) => {
+              const isOk = att.status === 'VERIFIED';
+              return (
+                <div
+                  key={att.attesterId}
+                  className={`p-3 rounded-xl border transition ${
+                    isOk ? 'bg-slate-950 border-slate-800' : 'bg-red-950/20 border-red-800/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white text-xs">{att.attesterName}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">({att.endpoint})</span>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        isOk
+                          ? 'bg-emerald-950 text-emerald-300 border-emerald-500/30'
+                          : 'bg-red-950 text-red-300 border-red-500/30'
+                      }`}
+                    >
+                      {isOk ? `✓ ED25519 OK (${att.latencyMs} мс)` : '✗ INVALID SIGNATURE'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400">
-                    <div>
-                      <span className="text-slate-500">AS-Бакет:</span> <strong className="text-slate-300">{att.asnDetected}</strong>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500">ASN:</span>
+                      <span className="text-cyan-300 font-semibold">{att.asnDetected}</span>
                     </div>
-                    <div>
-                      <span className="text-slate-500">Latency:</span> {att.latencyMs} ms
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500">Провайдер:</span>
+                      <span className="text-slate-200">{att.ispName}</span>
                     </div>
                   </div>
 
-                  <div className="text-[10px] text-slate-500 truncate">
-                    <span className="text-slate-600">VOPRF Blind Signature: </span>
-                    <code className="text-cyan-400/80">{att.voprfBlindSignature}</code>
+                  {/* Cryptographic Details */}
+                  <div className="mt-2 pt-2 border-t border-slate-900 text-[10px] text-slate-400 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span>Публичный ключ свидетеля:</span>
+                      <span className="text-slate-300 font-mono">{att.cryptographicCheck.publicKeyHex.slice(0, 16)}...{att.cryptographicCheck.publicKeyHex.slice(-8)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Хэш-дайджест аттестации (SHA-256):</span>
+                      <span className="text-slate-300 font-mono">{att.cryptographicCheck.messageDigestHex.slice(0, 16)}...</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Эллиптическая подпись:</span>
+                      <span className="text-cyan-400 font-mono">{att.voprfBlindSignature}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          {/* Pass Banner */}
-          {attestationPassed && (
-            <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-[11px] text-emerald-200 space-y-1">
-              <div className="font-bold text-white flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Сертификат ASN-аттестации успешно сгенерирован:</span>
-              </div>
-              <p className="text-slate-300 leading-relaxed font-mono">
-                5/5 свидетелей подтвердили уникальность автономной системы. Нода аттестована для включения в кворум Комитета Аудиторов (PoUSS) на блокчейне TON.
-              </p>
+          {/* Action trigger */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-cyan-400" />
+              <span className="text-slate-300">
+                Запустить пересчёт аттестации через ядро @noble/curves
+              </span>
             </div>
-          )}
+            <button
+              onClick={handleRunAttestation}
+              disabled={isAttesting}
+              className="px-4 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold transition flex items-center gap-2 cursor-pointer text-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isAttesting ? 'animate-spin' : ''}`} />
+              <span>{isAttesting ? 'Вычисление...' : 'Запустить Аттестацию'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-500 font-mono flex items-center justify-between shrink-0">
-          <span>* MVP-B: ASN-аттестация (5 HTTPS attesters, VOPRF)</span>
+        <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500 font-mono shrink-0">
+          <span>* NeXXUs Protocol • RFC 8032 Ed25519 & Blind VOPRF Scheme</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold transition cursor-pointer"

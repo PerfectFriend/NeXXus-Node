@@ -34,7 +34,7 @@ import {
   verifyAuditorPor 
 } from '../src/utils/merkleProof.js';
 import { calculate16GbSections, calculateDynamicVaultQuota, calculateAntiLoopModel } from '../src/utils/storageManager.js';
-import { deriveIdentityFromMnemonic, deriveBipSplitKeys } from '../src/utils/bip39.js';
+import { deriveIdentityFromMnemonic, deriveBipSplitKeys, generateBip39Mnemonic, isValidBip39Mnemonic } from '../src/utils/bip39.js';
 import {
   KademliaRoutingTable,
   type KademliaContact,
@@ -116,9 +116,9 @@ interface DaemonState {
 }
 
 // Generate or load state
-function initNodeIdentity(dataDir: string) {
+function initNodeIdentity(dataDir: string, customMnemonic?: string, forceRegen: boolean = false) {
   const keyFile = path.join(dataDir, 'node_identity.json');
-  if (fs.existsSync(keyFile)) {
+  if (fs.existsSync(keyFile) && !forceRegen) {
     try {
       const data = JSON.parse(fs.readFileSync(keyFile, 'utf8'));
       return data;
@@ -127,13 +127,23 @@ function initNodeIdentity(dataDir: string) {
     }
   }
 
-  // Pre-seeded or random test identity
-  const mnemonicWords = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".split(' ');
+  // Real CSPRNG 128-bit BIP-39 mnemonic generation or user-provided phrase
+  let mnemonicWords: string[];
+  if (customMnemonic && customMnemonic.trim().length > 0) {
+    mnemonicWords = customMnemonic.trim().split(/\s+/);
+    if (!isValidBip39Mnemonic(mnemonicWords)) {
+      throw new Error('Provided mnemonic phrase is invalid according to BIP-39 checksum/wordlist');
+    }
+  } else {
+    mnemonicWords = generateBip39Mnemonic();
+  }
+
   const identity = deriveIdentityFromMnemonic(mnemonicWords);
   const splitKeys = deriveBipSplitKeys(mnemonicWords);
 
   const payload = {
     mnemonicWarning: "NOTE: Linux donor node stores only node key (m/44/9999/0/0/0). Master seed is not kept in memory in production.",
+    mnemonicBackup: mnemonicWords.join(' '),
     nodeId: `node-linux-${identity.masterPublicKey.slice(7, 15)}`,
     masterPublicKey: identity.masterPublicKey,
     onionAddress: identity.onionAddress,
@@ -214,7 +224,7 @@ function sendWireRequest(targetUrl: string, opcode: P2POpcode, payload: Uint8Arr
   return new Promise((resolve, reject) => {
     const wsUrl = targetUrl.startsWith('ws') ? targetUrl : `ws://${targetUrl}/p2p`;
     const ws = new WebSocket(wsUrl);
-    const requestId = Math.floor(Math.random() * 0xffffffff);
+    const requestId = crypto.randomInt(1, 0xffffffff);
     const timer = setTimeout(() => {
       ws.terminate();
       reject(new Error(`P2P wire request timed out after ${timeoutMs}ms (${wsUrl})`));
@@ -241,6 +251,79 @@ function sendWireRequest(targetUrl: string, opcode: P2POpcode, payload: Uint8Arr
       clearTimeout(timer);
       reject(err);
     });
+  });
+}
+
+// Local HTTP Client Helpers for CLI interaction with running daemon
+function httpGetJson<T = any>(urlStr: string, timeoutMs: number = 3000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(urlStr);
+    const req = http.request(
+      {
+        hostname: parsed.hostname,
+        port: parsed.port,
+        path: parsed.pathname + parsed.search,
+        method: 'GET',
+        timeout: timeoutMs,
+      },
+      (res) => {
+        let body = '';
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              resolve(JSON.parse(body));
+            } catch (e) {
+              reject(new Error(`Invalid JSON response: ${body}`));
+            }
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${body || res.statusMessage}`));
+          }
+        });
+      }
+    );
+    req.on('timeout', () => { req.destroy(new Error(`Request timed out after ${timeoutMs}ms`)); });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function httpPostJson<T = any>(urlStr: string, data: any, timeoutMs: number = 4000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(urlStr);
+    const postData = JSON.stringify(data);
+    const req = http.request(
+      {
+        hostname: parsed.hostname,
+        port: parsed.port,
+        path: parsed.pathname + parsed.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        let body = '';
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              resolve(JSON.parse(body));
+            } catch (e) {
+              resolve({ raw: body } as any);
+            }
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${body || res.statusMessage}`));
+          }
+        });
+      }
+    );
+    req.on('timeout', () => { req.destroy(new Error(`Request timed out after ${timeoutMs}ms`)); });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
   });
 }
 
@@ -347,11 +430,141 @@ async function main() {
     logger.setMinLevel(flags['log-level'].toUpperCase() as any);
   }
 
+  // CLI Subcommand: init
+  if (command === 'init') {
+    const customMnemonic = flags['mnemonic'] || positional[0];
+    const force = Boolean(flags['force'] || flags['f']);
+    const keyFile = path.join(dataDir, 'node_identity.json');
+
+    if (fs.existsSync(keyFile) && !force) {
+      const existing = JSON.parse(fs.readFileSync(keyFile, 'utf8'));
+      console.log('\n==========================================================');
+      console.log('⚠️  NeXXUs Node Identity already exists at:');
+      console.log(`   ${keyFile}`);
+      console.log('==========================================================');
+      console.log(`• Node ID:         ${existing.nodeId}`);
+      console.log(`• Master PubKey:   ${existing.masterPublicKey}`);
+      console.log(`• Tor Onion v3:    ${existing.onionAddress}`);
+      console.log(`• Created:         ${existing.created}`);
+      console.log('----------------------------------------------------------');
+      console.log('To overwrite and generate a fresh key pair, run:');
+      console.log('  nexxusd init --force');
+      console.log('==========================================================\n');
+      process.exit(0);
+    }
+
+    try {
+      const newIdentity = initNodeIdentity(dataDir, customMnemonic, true);
+      console.log('\n==========================================================');
+      console.log('🎉 NeXXUs Node Identity Initialized Successfully!');
+      console.log('==========================================================');
+      if (newIdentity.mnemonicBackup) {
+        console.log('🔑 Master BIP-39 Recovery Phrase (SAVE OFFLINE & SECURE):');
+        console.log('   ' + newIdentity.mnemonicBackup);
+        console.log('----------------------------------------------------------');
+      }
+      console.log(`• Node ID:         ${newIdentity.nodeId}`);
+      console.log(`• Master PubKey:   ${newIdentity.masterPublicKey}`);
+      console.log(`• Tor Onion v3:    ${newIdentity.onionAddress}`);
+      console.log(`• Key File:        ${keyFile}`);
+      console.log('==========================================================');
+      console.log('Next step: Start the node service:');
+      console.log('  nexxusd serve');
+      console.log('  # or via systemd: sudo systemctl enable --now nexxus-node');
+      console.log('==========================================================\n');
+      process.exit(0);
+    } catch (err: any) {
+      console.error(`❌ Initialization failed: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
   const identity = initNodeIdentity(dataDir);
   const allocatedGb = flags['storage-gb'] ? parseInt(flags['storage-gb'], 10) : DEFAULT_ALLOCATED_GB;
   const sections = calculate16GbSections(allocatedGb);
   const dynamicQuota = calculateDynamicVaultQuota(21, true);
   const antiLoop = calculateAntiLoopModel();
+
+  // CLI Subcommand: id
+  if (command === 'id') {
+    if (flags['json']) {
+      console.log(JSON.stringify(identity, null, 2));
+    } else {
+      console.log('\n==========================================================');
+      console.log('🆔 NeXXUs Node Passport');
+      console.log('==========================================================');
+      console.log(`Node ID:         ${identity.nodeId}`);
+      console.log(`Master PubKey:   ${identity.masterPublicKey}`);
+      console.log(`Onion v3:        ${identity.onionAddress}`);
+      console.log(`Device / Arch:   ${identity.os}`);
+      console.log(`Hostname:        ${identity.hostname}`);
+      console.log(`Storage Dir:     ${dataDir}`);
+      console.log(`Listening Port:  ${flags['port'] || DEFAULT_PORT}`);
+      console.log('==========================================================');
+      console.log('Exchange Command for Remote Peer:');
+      console.log(`  nexxusd peer add <THIS_MACHINE_IP>:${flags['port'] || DEFAULT_PORT}`);
+      console.log('==========================================================\n');
+    }
+    process.exit(0);
+  }
+
+  // CLI Subcommand: peers
+  if (command === 'peers') {
+    const daemonPort = flags['port'] ? parseInt(flags['port'], 10) : DEFAULT_PORT;
+    const daemonHost = flags['host'] || '127.0.0.1';
+    try {
+      const res = await httpGetJson(`http://${daemonHost}:${daemonPort}/api/peers`);
+      const peers = Array.isArray(res) ? res : [];
+      console.log('\n==========================================================');
+      console.log(`🌐 NeXXUs Connected Mesh Peers (${peers.length} active)`);
+      console.log('==========================================================');
+      if (peers.length === 0) {
+        console.log('No peers currently connected.');
+        console.log(`\nTo add and connect to a peer:`);
+        console.log(`  nexxusd peer add <ip:port>`);
+      } else {
+        peers.forEach((p: any, idx: number) => {
+          console.log(`[${idx + 1}] Node ID:   ${p.nodeId}`);
+          console.log(`    Endpoint:  ${p.p2pEndpoint || 'unknown'}`);
+          console.log(`    Onion:     ${p.onionAddress ? p.onionAddress.slice(0, 24) + '...' : 'n/a'}`);
+          console.log(`    Latency:   ${p.rttMs !== undefined ? p.rttMs + ' ms' : 'pending'}`);
+          console.log(`    Storage:   ${p.totalStorageAllocatedGb || 0} GB`);
+          console.log(`    Uptime:    ${p.uptimeSeconds || 0}s`);
+          console.log('----------------------------------------------------------');
+        });
+      }
+      console.log('==========================================================\n');
+    } catch (err: any) {
+      console.error(`❌ Could not connect to local daemon at http://${daemonHost}:${daemonPort}: ${err.message}`);
+      console.error('Make sure the daemon is running (`nexxusd serve` or `sudo systemctl status nexxus-node`).');
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+
+  // CLI Subcommand: peer add <ip:port>
+  if (command === 'peer' || command === 'peer-add') {
+    const action = command === 'peer-add' ? 'add' : positional[0];
+    const targetPeer = command === 'peer-add' ? positional[0] : positional[1];
+
+    if (action !== 'add' || !targetPeer) {
+      console.error('Usage: nexxusd peer add <ip:port>');
+      process.exit(1);
+    }
+
+    const daemonPort = flags['port'] ? parseInt(flags['port'], 10) : DEFAULT_PORT;
+    const daemonHost = flags['host'] || '127.0.0.1';
+    console.log(`Connecting to local daemon at ${daemonHost}:${daemonPort} to add peer ${targetPeer}...`);
+    try {
+      const res = await httpPostJson(`http://${daemonHost}:${daemonPort}/api/peer/add`, { peerUrl: targetPeer });
+      console.log(`✅ ${res.message || 'Peer successfully added and handshake initiated'}`);
+    } catch (err: any) {
+      console.error(`❌ Failed to connect to local daemon at ${daemonHost}:${daemonPort}: ${err.message}`);
+      console.error('Make sure the daemon is running (`nexxusd serve` or `sudo systemctl status nexxus-node`).');
+      process.exit(1);
+    }
+    process.exit(0);
+  }
 
   // CLI Subcommand: benchmark
   if (command === 'benchmark') {
@@ -408,7 +621,11 @@ Usage:
 
 Commands:
   serve                          Start the background P2P storage daemon (default)
+  init [--mnemonic="..."]        Generate or restore sovereign node identity
+  id [--json]                    Display cryptographic node passport & Onion v3
   status                         Display current node identity, allocation & private vault tier
+  peers                          List active connected mesh peers and latencies
+  peer add <ip:port>             Connect and exchange announce frame with peer
   test-por                       Run local Proof-of-Retrievability audit benchmark (<3000ms)
   test-interhost <ip:port>       Run complete 6-stage P2P audit against remote peer
   upload <file> [--peers=...]    Encrypt & distribute 16KB shards (RS 4+2)
@@ -423,6 +640,9 @@ Options:
   --peers=<list>                 Comma-separated list of bootstrap peers
   --storage-gb=<num>             Storage pool size in GB (default: 384)
   --data-dir=<path>              Data directory path (default: /var/lib/nexxus or ~/.nexxus-storage)
+  --mnemonic=<words>             12-word BIP-39 mnemonic phrase to restore node identity
+  --vault-key=<hex>              Custom 32-byte encryption key for upload/download
+  --force                        Overwrite existing node_identity.json during init
 
 Configuration:
   /etc/nexxus/nexxus.conf
@@ -524,7 +744,7 @@ Configuration:
 
       // Step 4: P2P 16KB Encrypted Shard Push (STORE_CHUNK)
       console.log('📦 [4/6] Pushing 16KB encrypted shard to remote host (STORE_CHUNK)...');
-      const testChunkIdx = Math.floor(Math.random() * 90000) + 10000;
+      const testChunkIdx = crypto.randomInt(10000, 100000);
       const testData = Buffer.alloc(CHUNK_SIZE_BYTES);
       for (let i = 0; i < CHUNK_SIZE_BYTES; i++) {
         testData[i] = (i * 47 + testChunkIdx) % 256;
@@ -632,8 +852,9 @@ Configuration:
     const peersStr = flags['peers'] || process.env.NEXXUS_BOOTSTRAP_PEERS || '';
     const peerList = peersStr.split(',').map(s => s.trim()).filter(Boolean);
 
-    // Derive symmetric encryption key from node identity key
-    const vaultKey = sha256(utf8ToBytes(identity.nodePrivateKeyHex));
+    // Derive symmetric encryption key from node identity key or user-provided vault key
+    const customVaultKeyHex = flags['vault-key'] || flags['key'];
+    const vaultKey = customVaultKeyHex ? hexToBytes(customVaultKeyHex) : sha256(utf8ToBytes(identity.nodePrivateKeyHex));
     const encryptionNonce = new Uint8Array(24); // XChaCha20 nonce
     crypto.randomFillSync(encryptionNonce);
 
@@ -727,12 +948,25 @@ Configuration:
     const manifestPath = path.join(metaDir, `${fileHash}.manifest.json`);
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
 
+    // Replicate manifest to reachable remote peers via HTTP
+    for (const p of peerList) {
+      const cleanPeer = p.replace(/^ws:\/\//, '').replace(/^http:\/\//, '');
+      const httpEndpoint = `http://${cleanPeer}/api/manifest`;
+      httpPostJson(httpEndpoint, manifest, 2500).then(() => {
+        logger.info('UPLOAD', `Replicated manifest to peer ${cleanPeer}`);
+      }).catch(() => {});
+    }
+
     console.log('\n==========================================================');
     console.log(`🎉 Ingestion Complete!`);
     console.log(`Merkle Root:   ${manifest.merkleRoot}`);
     console.log(`Manifest:      ${manifestPath}`);
+    console.log(`Vault Key:     ${bytesToHex(vaultKey)}`);
     console.log(`Total Shards:  ${allShardHashes.length} (Quorum: 4 out of 6 required for 100% recovery)`);
     console.log(`To download:   nexxusd download ${fileHash} ./recovered_${originalName}`);
+    if (customVaultKeyHex) {
+      console.log(`Remote note:   Pass --vault-key=${bytesToHex(vaultKey)} when downloading on other hosts`);
+    }
     console.log('==========================================================\n');
     process.exit(0);
   }
@@ -744,7 +978,7 @@ Configuration:
     const outputPath = positional[1];
 
     if (!targetHashOrFile || !outputPath) {
-      console.error('Usage: nexxusd download <file_hash_or_manifest_path> <output_destination>');
+      console.error('Usage: nexxusd download <file_hash_or_manifest_path> <output_destination> [--peers=...] [--vault-key=...]');
       process.exit(1);
     }
 
@@ -753,8 +987,29 @@ Configuration:
       manifestPath = path.join(metaDir, `${targetHashOrFile}.manifest.json`);
     }
 
+    const peersStr = flags['peers'] || process.env.NEXXUS_BOOTSTRAP_PEERS || '';
+    const peerList = peersStr.split(',').map(s => s.trim()).filter(Boolean);
+
+    // If manifest is missing locally, attempt to fetch from connected peers
+    if (!fs.existsSync(manifestPath)) {
+      console.log(`Manifest not found locally. Searching across ${peerList.length} peer(s)...`);
+      for (const p of peerList) {
+        const cleanPeer = p.replace(/^ws:\/\//, '').replace(/^http:\/\//, '');
+        try {
+          const remoteManifest = await httpGetJson<FileManifest>(`http://${cleanPeer}/api/manifest/${targetHashOrFile}`, 3000);
+          if (remoteManifest && remoteManifest.fileHash) {
+            manifestPath = path.join(metaDir, `${remoteManifest.fileHash}.manifest.json`);
+            fs.writeFileSync(manifestPath, JSON.stringify(remoteManifest, null, 2), 'utf8');
+            console.log(`✅ Successfully fetched manifest from peer http://${cleanPeer}`);
+            break;
+          }
+        } catch (e) {}
+      }
+    }
+
     if (!fs.existsSync(manifestPath)) {
       console.error(`Manifest file not found: ${manifestPath}`);
+      console.error('If the file was uploaded from another node, specify --peers=<host:port> to fetch the manifest.');
       process.exit(1);
     }
 
@@ -769,7 +1024,8 @@ Configuration:
 
     logger.info('DOWNLOAD', `Starting download: ${manifest.originalName}`, { fileHash: manifest.fileHash });
 
-    const vaultKey = sha256(utf8ToBytes(identity.nodePrivateKeyHex));
+    const customVaultKeyHex = flags['vault-key'] || flags['key'];
+    const vaultKey = customVaultKeyHex ? hexToBytes(customVaultKeyHex) : sha256(utf8ToBytes(identity.nodePrivateKeyHex));
     const encryptionNonce = hexToBytes(manifest.encryptionNonceHex);
     const recoveredFile = Buffer.alloc(manifest.totalSizeBytes);
 
@@ -789,11 +1045,19 @@ Configuration:
           continue;
         }
 
-        // If stored on peer, fetch over wire
+        // Search candidates: candidate peer recorded in manifest + peerList
+        const candidatePeers = new Set<string>();
         if (shardMeta.storedOnPeer && shardMeta.storedOnPeer !== 'local') {
+          candidatePeers.add(shardMeta.storedOnPeer);
+        }
+        for (const p of peerList) {
+          candidatePeers.add(p);
+        }
+
+        for (const peerUrl of candidatePeers) {
           try {
             const reqPayload = encodeJsonPayload<FetchChunkPayload>({ chunkHash: shardMeta.shardHash });
-            const resp = await sendWireRequest(shardMeta.storedOnPeer, P2POpcode.FETCH_CHUNK, reqPayload, 3000);
+            const resp = await sendWireRequest(peerUrl, P2POpcode.FETCH_CHUNK, reqPayload, 3000);
             if (resp.opcode === P2POpcode.FETCH_CHUNK_RESP) {
               const fetchResp = decodeJsonPayload<FetchChunkRespPayload>(resp.payload);
               if (fetchResp.found && fetchResp.data) {
@@ -806,10 +1070,11 @@ Configuration:
                   shardHash: shardMeta.shardHash,
                   data: rawData,
                 });
+                break; // found!
               }
             }
           } catch (e) {
-            // peer offline
+            // peer offline or timed out
           }
         }
       }
@@ -1056,6 +1321,107 @@ Configuration:
       return;
     }
 
+    // GET /api/id
+    if (url === '/api/id') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        nodeId: state.nodeId,
+        onionAddress: state.onionAddress,
+        masterPublicKey: state.masterPublicKey,
+        os: `${os.type()} ${os.release()} (${os.arch()})`,
+        hostname: os.hostname(),
+        port,
+        allocatedGb: state.allocatedGb,
+      }, null, 2));
+      return;
+    }
+
+    // POST /api/peer/add
+    if (url === '/api/peer/add' && req.method === 'POST') {
+      let bodyStr = '';
+      req.on('data', c => { bodyStr += c; });
+      req.on('end', async () => {
+        try {
+          const body = JSON.parse(bodyStr || '{}');
+          const peerUrl = body.peerUrl;
+          if (!peerUrl) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'peerUrl is required' }));
+            return;
+          }
+          logger.info('PEER_ADD', `Manual peer addition requested: ${peerUrl}`);
+          const pong = await sendWireRequest(peerUrl, P2POpcode.PING, new Uint8Array(0), 4000);
+          if (pong.opcode === P2POpcode.PONG) {
+            const announce = encodeJsonPayload<PeerInfo>({
+              nodeId: state.nodeId,
+              onionAddress: state.onionAddress,
+              p2pEndpoint: `ws://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`,
+              totalStorageAllocatedGb: state.allocatedGb,
+              reputationScore: 0.99,
+              uptimeSeconds: state.uptimeSeconds,
+              softwareVersion: '2.0.0-ubuntu',
+            });
+            const announceRes = await sendWireRequest(peerUrl, P2POpcode.NODE_ANNOUNCE, announce, 4000);
+            if (announceRes.opcode === P2POpcode.NODE_ANNOUNCE) {
+              const remotePeer = decodeJsonPayload<PeerInfo>(announceRes.payload);
+              connectedPeers.set(remotePeer.nodeId, remotePeer);
+              kademliaTable.addContact({
+                nodeId: remotePeer.nodeId,
+                onionAddress: remotePeer.onionAddress,
+                endpoint: remotePeer.p2pEndpoint || `ws://${peerUrl}`,
+                storageAllocatedGb: remotePeer.totalStorageAllocatedGb,
+                reputation: remotePeer.reputationScore,
+                lastSeenMs: Date.now(),
+              });
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, message: `Successfully connected to peer ${peerUrl} and exchanged announce frames` }));
+          } else {
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: `Invalid response from peer: opcode 0x${pong.opcode.toString(16)}` }));
+          }
+        } catch (err: any) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
+    // GET /api/manifest/:fileHash
+    if (url.startsWith('/api/manifest/')) {
+      const targetHash = url.replace('/api/manifest/', '').trim();
+      const manifestFile = path.join(metaDir, `${targetHash}.manifest.json`);
+      if (fs.existsSync(manifestFile)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(fs.readFileSync(manifestFile, 'utf8'));
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Manifest not found' }));
+      }
+      return;
+    }
+
+    // POST /api/manifest
+    if (url === '/api/manifest' && req.method === 'POST') {
+      let bodyStr = '';
+      req.on('data', c => { bodyStr += c; });
+      req.on('end', () => {
+        try {
+          const manifest = JSON.parse(bodyStr);
+          if (manifest.fileHash) {
+            fs.writeFileSync(path.join(metaDir, `${manifest.fileHash}.manifest.json`), bodyStr, 'utf8');
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, fileHash: manifest.fileHash }));
+            return;
+          }
+        } catch (e) {}
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid manifest payload' }));
+      });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Endpoint not found' }));
   });
@@ -1105,6 +1471,19 @@ Configuration:
               asn: asnInfo.asn,
               storageGb: peer.totalStorageAllocatedGb,
             });
+
+            // Reciprocal handshake: respond with our own node passport
+            const ourAnnounce = encodeJsonPayload<PeerInfo>({
+              nodeId: state.nodeId,
+              onionAddress: state.onionAddress,
+              p2pEndpoint: `ws://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`,
+              totalStorageAllocatedGb: state.allocatedGb,
+              reputationScore: 0.99,
+              uptimeSeconds: state.uptimeSeconds,
+              softwareVersion: '2.0.0-ubuntu',
+            });
+            const resp = serializeWireMessage(P2POpcode.NODE_ANNOUNCE, msg.requestId, ourAnnounce);
+            ws.send(Buffer.from(resp));
             break;
           }
 

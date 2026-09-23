@@ -3,7 +3,7 @@
  * Validates cryptographic invariants, storage formulas, 8-week vesting, and RF=6x chunking.
  */
 
-import { deriveIdentityFromMnemonic, deriveBipSplitKeys, BIP39_WORDS } from '../src/utils/bip39';
+import { deriveIdentityFromMnemonic, deriveBipSplitKeys, BIP39_WORDS, generateBip39Mnemonic, isValidBip39Mnemonic } from '../src/utils/bip39';
 import { 
   calculate16GbSections, 
   processDailyEpoch, 
@@ -55,6 +55,14 @@ async function runTests() {
   assert(splitKeys.vaultMasterPath === "m/44'/9999'/0'/1'/0", 'Vault master path is m/44/9999/0/1/0');
   assert(splitKeys.vaultChaChaKeyHex.length === 64, 'Vault ChaCha20-Poly1305 key is 256-bit (64 hex chars)');
   assert(splitKeys.donorNodeCanDecrypt === false, 'Threat Model: donor node CANNOT decrypt user vault files');
+  assert(BIP39_WORDS.length === 2048, 'BIP-39 Wordlist contains strictly 2048 standard English words');
+  
+  const generatedMnemonic = generateBip39Mnemonic();
+  assert(generatedMnemonic.length === 12, 'generateBip39Mnemonic() produces exact 12 words');
+  assert(isValidBip39Mnemonic(generatedMnemonic), 'generateBip39Mnemonic() produces cryptographically valid BIP-39 phrase with SHA-256 checksum');
+  const canonicalBip39Vector = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'.split(' ');
+  assert(isValidBip39Mnemonic(canonicalBip39Vector), 'Canonical BIP-39 vector validates against checksum algorithm');
+  assert(!isValidBip39Mnemonic(['abandon', 'abandon', 'abandon']), 'Invalid word count or invalid checksum is rejected');
 
   // Test 2: Storage Section Allocation & Barter Philosophy
   console.log('\n📦 Test Suite 2: 16GB Section Architecture & Barter Economics');

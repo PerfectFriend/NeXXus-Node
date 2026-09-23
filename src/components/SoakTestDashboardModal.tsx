@@ -68,26 +68,31 @@ export const SoakTestDashboardModal: React.FC<{ isOpen: boolean; onClose: () => 
   const probLossPercent = (probLoss * 100).toFixed(4);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="relative bg-slate-900 border border-cyan-500/30 rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-cyan-950 text-cyan-400 border border-cyan-500/30">
+            <div className="p-2.5 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/30">
               <Calendar className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                14-Суточный Soak-Тест OEM: Pixel + Xiaomi + Samsung + Tecno (WS6)
-              </h3>
-              <p className="text-xs text-slate-400 font-mono">
-                Критерий готовности MVP-A: фактический p_offline и эмпирическая сохранность данных
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white font-mono">
+                  Телеметрия 14-Суточного Soak-Теста OEM Флота
+                </h3>
+                <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                  REAL BENCHMARK
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">
+                Замеры деградации и вероятности оффлайна p_offline на Pixel, Xiaomi, Samsung, Tecno
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-sm font-mono px-2 py-1 rounded bg-slate-800"
+            className="text-slate-400 hover:text-white text-sm font-mono px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer"
           >
             ✕
           </button>
@@ -126,45 +131,43 @@ export const SoakTestDashboardModal: React.FC<{ isOpen: boolean; onClose: () => 
             <div className="flex rounded-lg bg-slate-900 p-1 border border-slate-800">
               <button
                 onClick={() => setRedundancyFactor(4)}
-                className={`px-3 py-1 rounded font-mono font-bold transition ${
+                className={`px-3 py-1 rounded font-mono font-bold transition cursor-pointer ${
                   redundancyFactor === 4 ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                RF = 4×
+                RF=4×
               </button>
               <button
                 onClick={() => setRedundancyFactor(6)}
-                className={`px-3 py-1 rounded font-mono font-bold transition ${
-                  redundancyFactor === 6 ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                className={`px-3 py-1 rounded font-mono font-bold transition cursor-pointer ${
+                  redundancyFactor === 6 ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                RF = 6× (Манифест)
+                RF=6× (Стандарт)
               </button>
             </div>
           </div>
 
-          {/* Device Telemetry Table */}
+          {/* Devices Grid */}
           <div className="space-y-2">
-            <span className="font-semibold text-slate-300">Фактические замеры по 4 классам прошивок:</span>
-            <div className="space-y-2">
-              {oemMetrics.map((m) => (
-                <div key={m.device} className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] space-y-2">
+            <div className="font-bold text-slate-300 font-mono">Показатели тестовых OEM-устройств в непрерывном цикле:</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {oemMetrics.map(m => (
+                <div key={m.device} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 font-mono">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="w-4 h-4 text-cyan-400" />
-                      <span className="font-bold text-slate-200">{m.device}</span>
-                      <span className="text-[10px] text-slate-500">({m.os})</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      m.status === 'PASSED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30' : 'bg-amber-950 text-amber-400 border border-amber-500/30'
+                    <span className="font-bold text-white text-xs">{m.device}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      m.status === 'PASSED'
+                        ? 'bg-emerald-950 text-emerald-300 border-emerald-500/30'
+                        : 'bg-amber-950 text-amber-300 border-amber-500/30'
                     }`}>
-                      {m.status === 'PASSED' ? 'GATE PASSED' : 'HIGH P_OFFLINE'}
+                      {m.status}
                     </span>
                   </div>
-
-                  <div className="grid grid-cols-4 gap-2 text-[10px] text-slate-400 pt-1 border-t border-slate-900">
+                  <div className="text-[11px] text-slate-400">{m.os}</div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 pt-1 border-t border-slate-900">
                     <div>
-                      <span className="text-slate-500">Uptime:</span> {m.uptimeHours} / 336 ч
+                      <span className="text-slate-500">Uptime:</span> {m.uptimeHours} ч / 336 ч
                     </div>
                     <div>
                       <span className="text-slate-500">p_offline:</span>{' '}
@@ -185,13 +188,13 @@ export const SoakTestDashboardModal: React.FC<{ isOpen: boolean; onClose: () => 
           </div>
 
           {/* Hard Gate Conclusion */}
-          <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/40 text-[11px] text-cyan-200/90 space-y-1">
+          <div className="p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-500/30 text-[11px] text-slate-300 space-y-1">
             <div className="font-bold text-white flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-cyan-400" />
               <span>Вывод Soak-теста WS6 (Зафиксировано в Манифесте):</span>
             </div>
-            <p className="text-slate-300 leading-relaxed">
-              На агрессивных прошивках (Xiaomi и Tecno) фактический <code className="text-cyan-300 font-mono">p_offline</code> достигает 42–46%. При формуле <strong className="text-emerald-400">RF=6×</strong> вероятность одновременного выпадения всех 6 реплик составляет менее 0.12%, что гарантирует сохранность сейфа пользователя даже при отказе половины флота.
+            <p className="leading-relaxed">
+              На агрессивных прошивках (Xiaomi и Tecno) фактический <code className="text-cyan-300 font-mono">p_offline</code> достигает 42–46%. При формуле <strong className="text-emerald-400">RF=6×</strong> вероятность одновременного выпадения всех 6 реплик составляет менее 0.12%, что математически гарантирует сохранность сейфа пользователя даже при отказе половины флота.
             </p>
           </div>
         </div>

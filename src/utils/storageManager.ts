@@ -125,27 +125,25 @@ export function processDailyEpoch(
 } {
   const currentTimestamp = Date.now();
   const treasury: TreasuryStats = {
-    poolBalanceNexx: 142500,
+    poolBalanceNexx: identity.treasury?.poolBalanceNexx ?? 142500,
     dailyCollectedNexx: 0,
     dailyDistributedNexx: 0,
-    totalSubscribedStorageGb: 120,
-    totalPaidForeignGb: 88,
-    ratePerGbPerDay: DAILY_NEXX_RATE_PER_GB,
+    totalSubscribedStorageGb: identity.treasury?.totalSubscribedStorageGb ?? (identity.subscribedStorageGb || 0),
+    totalPaidForeignGb: identity.treasury?.totalPaidForeignGb ?? 0,
+    ratePerGbPerDay: identity.treasury?.ratePerGbPerDay ?? DAILY_NEXX_RATE_PER_GB,
     lastEpochTimestamp: currentTimestamp,
-    epochNumber: 1,
-    ...(identity.treasury || {}),
+    epochNumber: (identity.treasury?.epochNumber ?? 0) + 1,
   };
   const balances = {
-    nexx: 1250,
-    ton: 45.5,
-    usdc: 150.0,
-    eth: 0.05,
-    btc: 0.002,
-    ...(identity.balances || {}),
+    nexx: identity.balances?.nexx ?? 0,
+    ton: identity.balances?.ton ?? 0,
+    usdc: identity.balances?.usdc ?? 0,
+    eth: identity.balances?.eth ?? 0,
+    btc: identity.balances?.btc ?? 0,
   };
 
-  let currentUnlockedNexx = identity.unlockedNexx ?? 480;
-  let currentLockedNexx8Weeks = identity.lockedNexx8Weeks ?? 770;
+  let currentUnlockedNexx = identity.unlockedNexx ?? balances.nexx;
+  let currentLockedNexx8Weeks = identity.lockedNexx8Weeks ?? 0;
 
   // 1. Daily Subscription Payment from user to Network Treasury
   const dailyCost = Number(((identity.subscribedStorageGb ?? 0) * SUBSCRIPTION_DAILY_COST_PER_GB).toFixed(2));

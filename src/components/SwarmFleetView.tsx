@@ -4,7 +4,8 @@ import {
   RefreshCw, PowerOff, Power, CheckCircle2, Flame, Wifi, Clock, ArrowRight,
   ShieldAlert, Activity, QrCode, X, Copy, Check, Cpu, Calendar
 } from 'lucide-react';
-import { NodeRecord, Bip39Identity, DeviceType } from '../types/nexxus';
+import { NodeRecord, Bip39Identity, DeviceType, VaultFile } from '../types/nexxus';
+import { secureRandomInt } from '../utils/cryptoRandom';
 import { GrokSimulationLabModal } from './GrokSimulationLabModal';
 import { KademliaEngineModal } from './KademliaEngineModal';
 import { NetworkRepairModal } from './NetworkRepairModal';
@@ -14,6 +15,8 @@ import { SwarmHealthDashboardModal } from './SwarmHealthDashboardModal';
 interface SwarmFleetViewProps {
   nodes: NodeRecord[];
   identity: Bip39Identity;
+  vaultFiles?: VaultFile[];
+  onUpdateFiles?: (files: VaultFile[]) => void;
   onToggleNodeOnline: (nodeId: string) => void;
   onSimulateEmergencyGrace: (nodeId: string) => void;
   onExpireGraceNow: (nodeId: string) => void;
@@ -25,6 +28,8 @@ interface SwarmFleetViewProps {
 export const SwarmFleetView: React.FC<SwarmFleetViewProps> = ({
   nodes,
   identity,
+  vaultFiles = [],
+  onUpdateFiles,
   onToggleNodeOnline,
   onSimulateEmergencyGrace,
   onExpireGraceNow,
@@ -64,7 +69,16 @@ export const SwarmFleetView: React.FC<SwarmFleetViewProps> = ({
 
     const chars = "abcdefghijklmnopqrstuvwxyz234567";
     let randOnion = "nexxus";
-    for (let i = 0; i < 48; i++) randOnion += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < 48; i++) randOnion += chars[secureRandomInt(chars.length)];
+
+    const randomAsns = [
+      { asn: 'AS9009', isp: 'M247 Global Network' },
+      { asn: 'AS15169', isp: 'Google Fiber Direct' },
+      { asn: 'AS3301', isp: 'Telia Company AB' },
+      { asn: 'AS2516', isp: 'KDDI Corporation Japan' },
+      { asn: 'AS1273', isp: 'Vodafone Backbone' },
+    ];
+    const pickedAsn = randomAsns[secureRandomInt(randomAsns.length)];
 
     onAddNewNode({
       name: newNodeName.trim(),
@@ -82,6 +96,8 @@ export const SwarmFleetView: React.FC<SwarmFleetViewProps> = ({
       temperatureC: 33.5,
       wifiSsid: 'Home_Decentralized_Mesh',
       wifiSignalDbm: -52,
+      asn: pickedAsn.asn,
+      isp: pickedAsn.isp,
       internalTotalGb: newNodeStorageGb,
       internalFreeGb: newNodeStorageGb - 8,
       autoModeEnabled: true,
@@ -142,34 +158,34 @@ export const SwarmFleetView: React.FC<SwarmFleetViewProps> = ({
               className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 border border-emerald-500/40 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
             >
               <Activity className="w-4 h-4 text-emerald-400" />
-              <span>Ремонт Чанков (WS4)</span>
+              <span>Ремонт Чанков (WS4 Live)</span>
             </button>
 
             <button
               id="btn-open-soak-modal"
               onClick={() => setShowSoakModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 border border-amber-500/40 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
             >
-              <Calendar className="w-4 h-4 text-amber-400" />
-              <span>14-Дней Soak (WS6)</span>
+              <Calendar className="w-4 h-4 text-cyan-400" />
+              <span>14-Дней Soak-Тест (WS6)</span>
             </button>
 
             <button
               id="btn-open-swarm-health-modal"
               onClick={() => setShowSwarmHealthModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/90 text-cyan-200 border border-cyan-500/40 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
             >
-              <ShieldCheck className="w-4 h-4 text-cyan-400" />
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Здоровье & Anti-Outsource</span>
             </button>
 
             <button
               id="btn-open-grok-sim-lab"
               onClick={() => setShowSimLabModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-950/70 hover:bg-red-900/90 text-red-200 border border-red-500/40 text-xs font-bold transition shadow-lg shadow-red-950/40 shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
             >
-              <Cpu className="w-4 h-4 text-red-400" />
-              <span>Лаборатория Гриши (Sim Lab)</span>
+              <Cpu className="w-4 h-4 text-cyan-400" />
+              <span>Монте-Карло Анализ (Grok)</span>
             </button>
 
             <button
@@ -335,11 +351,11 @@ export const SwarmFleetView: React.FC<SwarmFleetViewProps> = ({
                     {node.isOnline ? (
                       <button
                         onClick={() => onSimulateEmergencyGrace(node.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition cursor-pointer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black hover:bg-red-950/80 text-red-400 border border-red-800 text-xs font-mono font-semibold transition cursor-pointer"
                         title="Имитировать отключение питания или сбой Wi-Fi"
                       >
-                        <PowerOff className="w-3.5 h-3.5" />
-                        <span>Сымитировать аварию</span>
+                        <PowerOff className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Инициировать аварийный отказ</span>
                       </button>
                     ) : (
                       <button
@@ -462,10 +478,13 @@ export const SwarmFleetView: React.FC<SwarmFleetViewProps> = ({
         onClose={() => setShowKademliaModal(false)}
       />
 
-      {/* Network Repair & Rate-Limiter Modal */}
+      {/* Network Repair & Rate-Limiter Modal (Live Engine) */}
       <NetworkRepairModal
         isOpen={showRepairModal}
         onClose={() => setShowRepairModal(false)}
+        vaultFiles={vaultFiles}
+        nodes={nodes}
+        onUpdateFiles={onUpdateFiles}
       />
 
       {/* 14-Day Soak Test Dashboard Modal */}

@@ -118,6 +118,8 @@ export interface NodeRecord {
   // LAN Peering (mDNS) - Opt-in for trusted home Wi-Fi (disabled by default for high anonymity)
   lanPeeringMdnsEnabled?: boolean;
   auditorNftGranted?: boolean;
+  asn?: string;
+  isp?: string;
 
   externalDevices: ExternalStorageDevice[];
 }

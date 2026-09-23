@@ -11,7 +11,8 @@
 [![Golden Vectors](https://img.shields.io/badge/Golden_Vectors-100%25_PASS-8b5cf6?style=for-the-badge&logo=checkmarx)](nexxus-vectors/)
 [![Erasure Coding](https://img.shields.io/badge/Fault_Tolerance-Reed--Solomon_(4+2)_GF(2^8)-f59e0b?style=for-the-badge&logo=speedtest)](test/protocol.test.ts)
 [![Network Privacy](https://img.shields.io/badge/Transport-Tor_v3_Onion_P2P-ec4899?style=for-the-badge&logo=torproject)](PROTOCOL_WIRE_SPEC.md)
-[![Cross Audit](https://img.shields.io/badge/Cross--Audit-Claude_%26_Gemini-3b82f6?style=for-the-badge&logo=github)](KURILKA.md)
+[![Security Audit](https://img.shields.io/badge/Security_Audit-Kimi_K3_PASSED-10b981?style=for-the-badge&logo=securityscorecard)](SECURITY_AUDIT.md)
+[![Dev Log](https://img.shields.io/badge/Dev_Log-Append--Only_Kurilka-3b82f6?style=for-the-badge&logo=github)](Kurilka.md)
 
 ---
 
@@ -100,11 +101,11 @@
 
 ## 🎯 Единое Протокольное Ядро (`nexxus-core`)
 
-В проекте NeXXUs исключён риск несовместимости клиентов. Ядро протокола пишется на **Rust** и компилируется в нативные бинарные таргеты:
+В проекте NeXXUs исключён риск несовместимости клиентов. Архитектура построена вокруг единого эталонного математического ядра с верификацией по эталонным векторам:
 
 ```
                           ┌───────────────────────────┐
-                          │   nexxus-core (Rust)      │
+                          │   nexxus-core (Rust/WASM) │
                           │ • BIP-39 & Ed25519        │
                           │ • ChaCha20-Poly1305 AEAD  │
                           │ • Reed-Solomon (4+2) GF256│
@@ -112,7 +113,7 @@
                           └─────────────┬─────────────┘
                 ┌───────────────────────┼───────────────────────┐
                 ▼                       ▼                       ▼
-        UniFFI Bindings           WASM / napi-rs          WASM / Browser
+        UniFFI Bindings           Reference Engine        WASM / Browser
       ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
       │  Android Vault   │    │   Linux Daemon   │    │  Web Dashboard   │
       │ (Kotlin/Compose) │    │(Headless Storage)│    │(Zero-Knowledge)  │
@@ -121,6 +122,8 @@
                 └───────────────────────┴───────────────────────┘
                     ВЕРИФИКАЦИЯ: nexxus-vectors/ (Golden Vectors)
 ```
+
+> **Статус реализации:** Текущий релиз предоставляет **полную эталонную реализацию (Reference Implementation)** на чистом TypeScript с использованием криптографических примитивов `@noble/*`, CSPRNG (`crypto.getRandomValues`), Reed-Solomon над $GF(2^8)$ и P2P wire-протокола. Все инварианты на 100% валидированы против канонических Golden Vectors. Нативный Rust-крейт `crates/nexxus-core` находится на стадии интеграции согласно [Акту приёмки ТЗ (ACCEPTANCE_NEXXUS_CORE_TZ.md)](ACCEPTANCE_NEXXUS_CORE_TZ.md).
 
 ### Эталонные Векторы (`nexxus-vectors/`)
 100% математическая идентичность гарантируется набором канонических golden-векторов:

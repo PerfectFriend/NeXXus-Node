@@ -1,70 +1,97 @@
-import React, { useState } from 'react';
-import { Activity, ShieldCheck, RefreshCw, AlertTriangle, ArrowRight, Gauge, Layers, CheckCircle2, Play } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Activity, ShieldCheck, RefreshCw, AlertTriangle, ArrowRight, Gauge, Layers, CheckCircle2, Play, HardDrive, Lock } from 'lucide-react';
+import { auditAndRepairChunks, loadRepairEngineState, RealRepairEvent, RepairEngineState } from '../utils/realRepairEngine';
+import { VaultFile, NodeRecord } from '../types/nexxus';
 
-interface RepairEvent {
-  chunkId: string;
-  lostReplicaNode: string;
-  electedCoordinator: string;
-  targetNewNode: string;
-  targetAsn: string;
-  bytesTransferred: number;
-  durationMs: number;
-  status: 'SUCCESS' | 'IN_PROGRESS' | 'RATE_LIMITED';
+interface NetworkRepairModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  vaultFiles?: VaultFile[];
+  nodes?: NodeRecord[];
+  onUpdateFiles?: (files: VaultFile[]) => void;
 }
 
-export const NetworkRepairModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const [dailyQuotaUsedMb, setDailyQuotaUsedMb] = useState(4.2);
-  const maxDailyQuotaMb = 12.5;
-  const [isSimulatingRepair, setIsSimulatingRepair] = useState(false);
-  const [repairLogs, setRepairLogs] = useState<RepairEvent[]>([
-    {
-      chunkId: 'chunk_7fa8_01 (16 KB)',
-      lostReplicaNode: 'tecno_camon_19 (Offline > 1h)',
-      electedCoordinator: 'thinkpad_x230_guard (AS15169)',
-      targetNewNode: 'samsung_a52_node (AS24940)',
-      targetAsn: 'AS24940 (Hetzner)',
-      bytesTransferred: 16384,
-      durationMs: 420,
-      status: 'SUCCESS',
-    },
-    {
-      chunkId: 'chunk_3c9d_04 (16 KB)',
-      lostReplicaNode: 'redmi_note_10 (Battery dead)',
-      electedCoordinator: 'pixel_6a_donor (AS13335)',
-      targetNewNode: 'xiaomi_pad_5 (AS32934)',
-      targetAsn: 'AS32934 (Cloudflare)',
-      bytesTransferred: 16384,
-      durationMs: 510,
-      status: 'SUCCESS',
-    },
-  ]);
+export const NetworkRepairModal: React.FC<NetworkRepairModalProps> = ({
+  isOpen,
+  onClose,
+  vaultFiles = [],
+  nodes = [],
+  onUpdateFiles,
+}) => {
+  const [repairState, setRepairState] = useState<RepairEngineState>(loadRepairEngineState);
+  const [isExecutingRepair, setIsExecutingRepair] = useState(false);
+  const [lastActionMessage, setLastActionMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setRepairState(loadRepairEngineState());
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleTriggerRepair = () => {
-    setIsSimulatingRepair(true);
-    setTimeout(() => {
-      const newMb = Math.min(maxDailyQuotaMb, +(dailyQuotaUsedMb + 0.15).toFixed(2));
-      setDailyQuotaUsedMb(newMb);
+  const maxDailyQuotaMb = repairState.dailyQuotaLimitBytes / (1024 * 1024);
+  const dailyQuotaUsedMb = +(repairState.dailyQuotaUsedBytes / (1024 * 1024)).toFixed(2);
+  const quotaPercent = Math.min(100, Math.round((repairState.dailyQuotaUsedBytes / repairState.dailyQuotaLimitBytes) * 100));
 
-      const isLimited = newMb >= maxDailyQuotaMb;
-      const newEvent: RepairEvent = {
-        chunkId: `chunk_${Math.random().toString(16).slice(2, 6)}_0${Math.floor(Math.random() * 5 + 1)} (16 KB)`,
-        lostReplicaNode: `donor_node_${Math.floor(Math.random() * 80 + 1)} (Unresponsive)`,
-        electedCoordinator: `coordinator_${Math.floor(Math.random() * 20 + 1)}`,
-        targetNewNode: `fresh_node_${Math.floor(Math.random() * 30 + 1)}`,
-        targetAsn: `AS${Math.floor(Math.random() * 50000 + 1000)} (Diverse AS)`,
-        bytesTransferred: 16384,
-        durationMs: Math.floor(Math.random() * 300 + 350),
-        status: isLimited ? 'RATE_LIMITED' : 'SUCCESS',
-      };
+  // Count chunks needing repair across all vault files
+  const onlineNodeIds = new Set(nodes.filter(n => n.isOnline).map(n => n.id));
+  let totalDegradedChunksCount = 0;
+  for (const file of vaultFiles) {
+    for (const chunk of file.chunks) {
+      const activeCount = chunk.replicaNodes.filter(id => onlineNodeIds.has(id)).length;
+      const targetRF = file.storageTier === 'cold_archive_rf4' ? 4 : 6;
+      if (activeCount < targetRF) {
+        totalDegradedChunksCount++;
+      }
+    }
+  }
 
-      setRepairLogs(prev => [newEvent, ...prev.slice(0, 4)]);
-      setIsSimulatingRepair(false);
-    }, 900);
+  const handleExecuteRealRepair = async () => {
+    if (vaultFiles.length === 0) {
+      setLastActionMessage('В вашем сейфе пока нет загруженных файлов для проверки.');
+      return;
+    }
+
+    setIsExecutingRepair(true);
+    setLastActionMessage(null);
+
+    try {
+      let updatedFiles = [...vaultFiles];
+      let totalRepairedInRun = 0;
+
+      for (let i = 0; i < updatedFiles.length; i++) {
+        const file = updatedFiles[i];
+        const res = await auditAndRepairChunks(file.chunks, nodes, file.storageTier);
+        if (res.repairedEvents.length > 0) {
+          totalRepairedInRun += res.repairedEvents.filter(e => e.status === 'SUCCESS').length;
+          updatedFiles[i] = {
+            ...file,
+            chunks: res.updatedChunks,
+          };
+        }
+      }
+
+      if (onUpdateFiles) {
+        onUpdateFiles(updatedFiles);
+      }
+
+      const refreshed = loadRepairEngineState();
+      setRepairState(refreshed);
+
+      if (totalRepairedInRun > 0) {
+        setLastActionMessage(`Успешно восстановлено ${totalRepairedInRun} чанков с соблюдением суточного лимита трафика.`);
+      } else if (totalDegradedChunksCount === 0) {
+        setLastActionMessage('Все чанки в сейфе уже обладают 100% избыточностью на активных узлах сети.');
+      } else {
+        setLastActionMessage('Проверка завершена. Обратите внимание на статус событий в журнале ниже.');
+      }
+    } catch (err: any) {
+      setLastActionMessage(`Ошибка аудита: ${err?.message || String(err)}`);
+    } finally {
+      setIsExecutingRepair(false);
+    }
   };
-
-  const quotaPercent = Math.min(100, Math.round((dailyQuotaUsedMb / maxDailyQuotaMb) * 100));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
@@ -78,15 +105,16 @@ export const NetworkRepairModal: React.FC<{ isOpen: boolean; onClose: () => void
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 Сетевой Ремонт Чанков & Rate-Limiter (WS4)
+                <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-600 text-emerald-400 text-[10px] font-mono">LIVE ENGINE</span>
               </h3>
               <p className="text-xs text-slate-400 font-mono">
-                Авто-регенерация RF=6× реплика-сета и защита трафика донора (12.5 МБ/сутки)
+                Реальный аудит реплика-сета, регенерация 16KB чанков и защита трафика донора
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-sm font-mono px-2 py-1 rounded bg-slate-800"
+            className="text-slate-400 hover:text-white text-sm font-mono px-2.5 py-1 rounded bg-slate-800 cursor-pointer"
           >
             ✕
           </button>
@@ -97,10 +125,10 @@ export const NetworkRepairModal: React.FC<{ isOpen: boolean; onClose: () => void
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Gauge className="w-4 h-4 text-cyan-400" />
-                <span className="font-bold text-white">Суточный лимит трафика ремонта (Rate-Limiter):</span>
+                <Gauge className="w-4 h-4 text-emerald-400" />
+                <span className="font-bold text-slate-200 font-mono">Суточный лимит трафика ремонта ноды:</span>
               </div>
-              <span className="font-mono text-xs font-bold text-cyan-300">
+              <span className="font-mono text-xs font-bold text-emerald-400">
                 {dailyQuotaUsedMb} / {maxDailyQuotaMb} МБ ({quotaPercent}%)
               </span>
             </div>
@@ -108,74 +136,106 @@ export const NetworkRepairModal: React.FC<{ isOpen: boolean; onClose: () => void
             <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
-                  quotaPercent > 80 ? 'bg-amber-500' : 'bg-gradient-to-r from-cyan-500 to-emerald-400'
+                  quotaPercent > 80 ? 'bg-amber-500' : 'bg-emerald-500'
                 }`}
                 style={{ width: `${quotaPercent}%` }}
               />
             </div>
 
+            <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+              <span>Всего проверено чанков: <strong className="text-white">{repairState.totalChunksAudited}</strong></span>
+              <span>Регенерировано: <strong className="text-emerald-300">{repairState.repairedChunksCount}</strong></span>
+            </div>
             <p className="text-slate-400 text-[11px] leading-relaxed">
-              🛡️ Модель ограничений: Мобильная нода никогда не сожжёт сотовый трафик владельца. При превышении 12.5 МБ/сутки ремонтные трансферы приостанавливаются до следующего UTC-дня или подключения к Wi-Fi.
+              * Защита от бесконечных циклов репликации (Rate-Limiting). При падении пиров устройство отдаёт не более 12.5 МБ в сутки, предотвращая выгорание мобильного тарифа.
             </p>
           </div>
 
-          {/* Trigger manual emergency simulation */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30">
+          {/* Trigger real repair execution */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800">
             <div>
-              <div className="font-bold text-white">Эмуляция выпадения реплики и сетевого ремонта</div>
-              <div className="text-[11px] text-slate-400">Survival кворум выбирает нового пира и восстанавливает RF=6</div>
+              <div className="font-bold text-white flex items-center gap-2">
+                <span>Аудит и репликация повреждённых чанков</span>
+                {totalDegradedChunksCount > 0 ? (
+                  <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/30 text-[10px] font-mono">
+                    Требуют ремонта: {totalDegradedChunksCount}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono">
+                    Все реплики в норме
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                Проверяет кворум узлов в сейфе, считывает бинарные чанки из IndexedDB и перенаправляет на новые онлайн-ноды.
+              </div>
             </div>
 
             <button
-              disabled={isSimulatingRepair || dailyQuotaUsedMb >= maxDailyQuotaMb}
-              onClick={handleTriggerRepair}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-mono text-xs font-bold transition cursor-pointer shrink-0"
+              disabled={isExecutingRepair || dailyQuotaUsedMb >= maxDailyQuotaMb}
+              onClick={handleExecuteRealRepair}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-mono text-xs font-bold transition shadow-lg shadow-emerald-950/40 cursor-pointer shrink-0"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSimulatingRepair ? 'animate-spin' : ''}`} />
-              <span>{isSimulatingRepair ? 'Восстановление...' : 'Симулировать ремонт'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isExecutingRepair ? 'animate-spin' : ''}`} />
+              <span>{isExecutingRepair ? 'Ремонт...' : 'Запустить аудит и ремонт'}</span>
             </button>
           </div>
 
+          {lastActionMessage && (
+            <div className="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span>{lastActionMessage}</span>
+            </div>
+          )}
+
           {/* Repair Events Stream */}
           <div className="space-y-2">
-            <div className="font-semibold text-slate-300 flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-emerald-400" />
-              <span>Журнал сетевых ремонтов (Network-Driven Repair Relay):</span>
+            <div className="font-semibold text-slate-300 flex items-center gap-1.5 font-mono">
+              <Layers className="w-4 h-4 text-cyan-400" />
+              <span>Журнал реальных сетевых ремонтов (IndexedDB + Kademlia):</span>
             </div>
 
             <div className="space-y-2">
-              {repairLogs.map((log, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-200">{log.chunkId}</span>
-                    <span className={`text-[10px] px-2 py-0.2 rounded font-bold ${
-                      log.status === 'SUCCESS' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' : 'bg-red-950 text-red-300'
-                    }`}>
-                      {log.status === 'SUCCESS' ? 'RF=6 ВОССТАНОВЛЕН' : 'RATE-LIMITED'}
-                    </span>
-                  </div>
-
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
-                    <span className="text-red-400 line-through">{log.lostReplicaNode}</span>
-                    <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
-                    <span className="text-cyan-300">{log.electedCoordinator}</span>
-                    <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
-                    <span className="text-emerald-300 font-bold">{log.targetNewNode}</span>
-                  </div>
-
-                  <div className="text-[10px] text-slate-500 flex items-center justify-between pt-0.5">
-                    <span>Размещение: {log.targetAsn}</span>
-                    <span>{log.durationMs} ms • {log.bytesTransferred} bytes</span>
-                  </div>
+              {repairState.repairHistory.length === 0 ? (
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-center text-slate-500 font-mono text-xs">
+                  История ремонтов пуста. Нажмите «Запустить аудит и ремонт» для сканирования реплика-сета.
                 </div>
-              ))}
+              ) : (
+                repairState.repairHistory.map((log) => (
+                  <div key={log.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 font-mono text-[11px] space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-200">{log.chunkId}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                        log.status === 'SUCCESS' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' : 
+                        log.status === 'RATE_LIMITED' ? 'bg-amber-950 text-amber-300 border border-amber-500/30' :
+                        'bg-red-950 text-red-300 border border-red-500/30'
+                      }`}>
+                        {log.status === 'SUCCESS' ? 'ВОССТАНОВЛЕН (16KB)' : log.status}
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+                      <span className="text-red-400 line-through">{log.lostReplicaNodeId}</span>
+                      <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+                      <span className="text-cyan-300">{log.electedCoordinatorNodeId}</span>
+                      <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+                      <span className="text-emerald-300 font-bold">{log.targetNewNodeId}</span>
+                    </div>
+
+                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-0.5">
+                      <span>Хэш: {log.verifiedHash.slice(0, 16)}...</span>
+                      <span>{log.durationMs} ms • {log.bytesTransferred} bytes</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-500 font-mono flex items-center justify-between shrink-0">
-          <span>* Ветка WS4: Replica-set, network-driven repair, rate-limit</span>
+          <span>* WS4 Live: Replica-set auto-heal, Merkle check, rate-limited</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold transition cursor-pointer"
@@ -187,3 +247,4 @@ export const NetworkRepairModal: React.FC<{ isOpen: boolean; onClose: () => void
     </div>
   );
 };
+
