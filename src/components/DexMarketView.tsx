@@ -30,6 +30,7 @@ export const DexMarketView: React.FC<DexMarketViewProps> = ({
   orders,
 }) => {
   const [selectedPair, setSelectedPair] = useState<SupportedPair>('NEXX/USDC');
+  const [activeDexSubTab, setActiveDexSubTab] = useState<'swap' | 'vesting' | 'council' | 'subscription'>('swap');
   const [swapType, setSwapType] = useState<'buy' | 'sell'>('buy');
   const [swapAmount, setSwapAmount] = useState<string>('200');
   const [subscribedPlanSuccess, setSubscribedPlanSuccess] = useState<string | null>(null);
@@ -263,275 +264,122 @@ export const DexMarketView: React.FC<DexMarketViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 space-y-6">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Toast Notification for Daily Epoch */}
       {epochToast && (
-        <div className="fixed top-20 right-6 z-50 max-w-md bg-slate-900 border border-amber-500 p-4 rounded-2xl shadow-2xl text-xs text-amber-200 animate-bounce">
-          <div className="flex items-start gap-2.5">
-            <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <div className="whitespace-pre-line leading-relaxed font-mono">
+        <div className="fixed top-16 right-4 sm:right-6 z-50 max-w-sm bg-slate-900 border border-amber-500 p-3 rounded-2xl shadow-2xl text-xs text-amber-200 animate-bounce">
+          <div className="flex items-start gap-2">
+            <Zap className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="whitespace-pre-line leading-relaxed font-mono text-[11px]">
               {epochToast}
             </div>
           </div>
         </div>
       )}
 
-      {/* Top Banner: Rules & Philosophy */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono px-2.5 py-0.5 rounded bg-amber-950 border border-amber-500/30 text-amber-400 font-bold uppercase">
-                Экономика NeXXUs: 16GB Бартер, 8-Недельный Вестинг & Казна
-              </span>
-              <span className="text-xs text-slate-400 font-mono">Суточные Эпохи 24h</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-mono mt-1">
-              $NEXX Биржа & Суточная Казна Сети
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
-              <strong className="text-emerald-300">Базовое правило:</strong> 16 GB на ноде дают вам 2 GB гарантированного неуничтожимого хранилища секретов. 
-              <br />
-              <strong className="text-amber-300">Расширение хранилища:</strong> за чужие 16KB чанки вы получаете $NEXX раз в сутки. Вывести можно токены, пролежавшие в кошельке 
-              <strong className="text-white"> не менее 8 недель (56 дней)</strong>. 
-              <span className="text-cyan-300"> За пустые незанятые гигабайты сеть не платит.</span>
-            </p>
-          </div>
-
-          {/* User Multi-Asset Wallet Balances with Lock Breakdown */}
-          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2.5 min-w-[310px]">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <Wallet className="w-3.5 h-3.5 text-amber-400" />
-                Баланс BIP-39 Ключа:
-              </div>
-              <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                {(identity.balances?.nexx ?? 0).toFixed(1)} $NEXX
-              </span>
+      {/* Top Fixed Header: Balances + Subtab navigation (shrink-0) */}
+      <div className="bg-slate-950/80 border-b border-slate-800 p-2.5 sm:p-4 space-y-2 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          {/* Multi-Asset Wallet Balances */}
+          <div className="flex items-center gap-3 text-xs font-mono overflow-x-auto pb-0.5 scrollbar-none">
+            <div className="flex items-center gap-1.5 shrink-0 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-xl">
+              <Wallet className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-white font-bold">{(identity.balances?.nexx ?? 0).toFixed(1)} $NEXX</span>
+              <span className="text-[10px] text-emerald-400">({(identity.unlockedNexx ?? 0).toFixed(1)} ликвид)</span>
             </div>
 
-            {/* Split Unlocked vs 8-Week Locked */}
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono p-2 bg-slate-900 rounded-lg border border-slate-850">
-              <div className="space-y-0.5">
-                <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                  <Unlock className="w-3 h-3" /> Доступно к бирже:
-                </span>
-                <span className="text-white font-black text-sm">{(identity.unlockedNexx ?? 0).toFixed(1)} NEXX</span>
-              </div>
-              <div className="space-y-0.5 border-l border-slate-800 pl-2">
-                <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Лок 8 недель:
-                </span>
-                <span className="text-amber-300 font-black text-sm">{(identity.lockedNexx8Weeks ?? 0).toFixed(1)} NEXX</span>
-              </div>
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 shrink-0">
+              <span><strong className="text-cyan-300">{(identity.balances?.usdc ?? 0).toFixed(1)}</strong> USDC</span>
+              <span><strong className="text-blue-400">{(identity.balances?.ton ?? 0).toFixed(2)}</strong> TON</span>
+              <span><strong className="text-purple-400">{(identity.balances?.btc ?? 0).toFixed(4)}</strong> BTC</span>
             </div>
-
-            <div className="grid grid-cols-3 gap-1.5 text-[11px] font-mono pt-1 text-slate-400">
-              <div><span className="text-cyan-300 font-bold">{(identity.balances?.usdc ?? 0).toFixed(1)}</span> USDC</div>
-              <div><span className="text-blue-400 font-bold">{(identity.balances?.ton ?? 0).toFixed(2)}</span> TON</div>
-              <div><span className="text-purple-400 font-bold">{(identity.balances?.btc ?? 0).toFixed(4)}</span> BTC</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Architecture Clarification: Hybrid Data Plane + On-chain Economy */}
-        <div className="p-3.5 rounded-xl bg-slate-950/80 border border-cyan-500/20 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-300 shrink-0">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="font-bold text-white">Гибридная архитектура NeXXUs:</span>
-              <span className="text-slate-400 ml-1">
-                Data-Plane (хранилище, чанки 16KB, пиринговый трафик) — <strong className="text-emerald-300">100% P2P оффчейн через Tor</strong>. 
-                Control-Plane (минт, казна, слэшинг) — <strong className="text-cyan-300">Ончейн смарт-контракт L1/L2</strong> с 1 транзакцией в сутки от Комитета Аудиторов.
-              </span>
-            </div>
-          </div>
-          <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30 uppercase font-bold shrink-0">
-            P2P Storage + On-Chain Economy
-          </span>
-        </div>
-
-        {/* 3 Pillars Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-800">
-          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold font-mono">
-              <Shield className="w-4 h-4" />
-              1. Базовый Бартер 16 GB ➔ 2 GB
-            </div>
-            <p className="text-[11px] text-slate-400 leading-normal">
-              Первые 16 GB отдаются сети в обмен на 2 GB неуничтожимого хранилища секретов. Токены за базовые 16 GB не начисляются.
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-            <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold font-mono">
-              <Database className="w-4 h-4" />
-              2. За Пустоту Не Платим!
-            </div>
-            <p className="text-[11px] text-slate-400 leading-normal">
-              Оплата токенами ($1.25 NEXX/GB в сутки) начисляется строго за реально размещенные чужие 16КБ чанки, а не за пустые гигабайты.
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold font-mono">
-              <Hourglass className="w-4 h-4" />
-              3. Вестинг 8 Недель (56 Дней)
-            </div>
-            <p className="text-[11px] text-slate-400 leading-normal">
-              Заработанные токены морозятся на 8 недель. Если нода держит стрик без штрафов, они созревают и становятся ликвидными.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Storage & "Zero Pay For Empty Space" Dashboard */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div>
-            <h2 className="text-base font-bold text-white font-mono flex items-center gap-2">
-              <Database className="w-4 h-4 text-cyan-400" />
-              Фактическая Загрузка Чужими Чанками (Принцип «За Пустоту Не Платим»)
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Сеть оплачивает только реально занятое полезное пространство для чужих реплик
-            </p>
           </div>
 
           {/* Daily Simulation Button */}
           <button
             onClick={handleTriggerDailyEpoch}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-black text-xs font-mono transition shadow-lg shadow-amber-950/40 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-[11px] font-mono transition shadow-md shrink-0 cursor-pointer self-start sm:self-auto"
           >
-            <Zap className="w-4 h-4" />
-            <span>Симулировать Суточную Эпоху (+24h)</span>
+            <Zap className="w-3.5 h-3.5" />
+            <span>+24h Эпоха (#{identity.treasury?.epochNumber ?? 1})</span>
           </button>
         </div>
 
-        {/* Storage Bar Breakdown */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-mono">
-            <span className="text-slate-400">
-              Выделено всеми нодами: <strong className="text-white">{totalAllocatedGb} GB</strong>
-            </span>
-            <span className="text-emerald-400 font-bold">
-              Оплачивается: {(totalActualForeignGb ?? 0).toFixed(1)} GB (~{(estimatedDailyEarnings ?? 0).toFixed(1)} $NEXX/сутки)
-            </span>
-          </div>
-
-          {/* Visual Progress Bar */}
-          <div className="h-5 w-full bg-slate-950 rounded-lg p-0.5 flex overflow-hidden border border-slate-800">
-            <div 
-              style={{ width: `${(totalBaseGb / Math.max(1, totalAllocatedGb)) * 100}%` }}
-              className="bg-purple-600/80 h-full flex items-center justify-center text-[10px] font-mono text-white font-bold px-1 transition-all"
-              title={`Базовый Бартер: ${totalBaseGb} GB (дает вам ${totalBaseSecretVaultGb} GB секретов)`}
+        {/* Subtab Navigation Pills */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+          {[
+            { id: 'swap', label: 'DEX Обмен & Стакан' },
+            { id: 'vesting', label: 'Вестинг 8 недель' },
+            { id: 'council', label: 'Совет Аудиторов (PoR)' },
+            { id: 'subscription', label: 'Подписка на Облако' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveDexSubTab(tab.id as any)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-mono transition shrink-0 ${
+                activeDexSubTab === tab.id
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+              }`}
             >
-              База {totalBaseGb}G
-            </div>
-
-            <div 
-              style={{ width: `${(totalActualForeignGb / Math.max(1, totalAllocatedGb)) * 100}%` }}
-              className="bg-emerald-500 h-full flex items-center justify-center text-[10px] font-mono text-slate-950 font-black px-1 transition-all"
-              title={`Занято чужими чанками: ${(totalActualForeignGb ?? 0).toFixed(1)} GB (ОПЛАЧИВАЕТСЯ)`}
-            >
-              Чужие чанки {(totalActualForeignGb ?? 0).toFixed(0)}G (Оплата)
-            </div>
-
-            <div 
-              style={{ width: `${(totalEmptyGb / Math.max(1, totalAllocatedGb)) * 100}%` }}
-              className="bg-slate-800 h-full flex items-center justify-center text-[10px] font-mono text-slate-400 font-bold px-1 transition-all"
-              title={`Пустое пространство: ${(totalEmptyGb ?? 0).toFixed(1)} GB (За пустоту не платим!)`}
-            >
-              Пусто {(totalEmptyGb ?? 0).toFixed(0)}G (0 $NEXX)
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 pt-1">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" />
-                Базовый бартер (2 GB секретов)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
-                Реальные чанки (Оплачивается $1.25/GB)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block" />
-                Пустота (Не оплачивается)
-              </span>
-            </div>
-            <span className="font-mono text-slate-300">
-              Суточный доход: <strong className="text-emerald-300">+{(estimatedDailyEarnings ?? 0).toFixed(1)} $NEXX</strong>
-            </span>
-          </div>
-        </div>
-
-        {/* Treasury Status Box */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs">
-          <div className="space-y-1">
-            <span className="text-slate-500 text-[10px] uppercase block">Казна Сети (Treasury):</span>
-            <span className="text-amber-400 font-black text-sm">{((identity.treasury?.poolBalanceNexx) ?? 142500).toLocaleString()} $NEXX</span>
-          </div>
-          <div className="space-y-1">
-            <span className="text-slate-500 text-[10px] uppercase block">Суточный сбор с подписок:</span>
-            <span className="text-cyan-400 font-bold text-sm">+{((identity.treasury?.dailyCollectedNexx) ?? 0).toFixed(1)} $NEXX/день</span>
-          </div>
-          <div className="space-y-1">
-            <span className="text-slate-500 text-[10px] uppercase block">Выплаты нодам за чанки:</span>
-            <span className="text-emerald-400 font-bold text-sm">-{((identity.treasury?.dailyDistributedNexx) ?? 0).toFixed(1)} $NEXX/день</span>
-          </div>
-          <div className="space-y-1">
-            <span className="text-slate-500 text-[10px] uppercase block">Текущая Эпоха:</span>
-            <span className="text-white font-bold text-sm">#{identity.treasury?.epochNumber ?? 1} (24h цикл)</span>
-          </div>
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Main Grid: Modular sub-panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Col: Instant Swap + Order Book */}
-        <div className="lg:col-span-5">
-          <DexSwapPanel
-            identity={identity}
-            selectedPair={selectedPair}
-            setSelectedPair={setSelectedPair}
-            swapType={swapType}
-            setSwapType={setSwapType}
-            swapAmount={swapAmount}
-            setSwapAmount={setSwapAmount}
-            currentPrice={currentPrice}
-            calculatedTotal={calculatedTotal}
-            orders={orders}
-            onExecuteSwap={handleExecuteSwap}
-          />
-        </div>
+      {/* Dedicated Scrollable Content Area (flex-1 min-h-0 overflow-y-auto) */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-4">
+        {activeDexSubTab === 'swap' && (
+          <div className="max-w-2xl mx-auto">
+            <DexSwapPanel
+              identity={identity}
+              selectedPair={selectedPair}
+              setSelectedPair={setSelectedPair}
+              swapType={swapType}
+              setSwapType={setSwapType}
+              swapAmount={swapAmount}
+              setSwapAmount={setSwapAmount}
+              currentPrice={currentPrice}
+              calculatedTotal={calculatedTotal}
+              orders={orders}
+              onExecuteSwap={handleExecuteSwap}
+            />
+          </div>
+        )}
 
-        {/* Right Col: 8-Week Vesting Schedule + Storage Expansion */}
-        <div className="lg:col-span-7 space-y-6">
-          <TreasuryVestingPanel identity={identity} />
+        {activeDexSubTab === 'vesting' && (
+          <div className="max-w-3xl mx-auto">
+            <TreasuryVestingPanel identity={identity} />
+          </div>
+        )}
 
-          <AuditorCouncilPanel
-            identity={identity}
-            nodes={nodes}
-            auditorMandates={auditorMandates}
-            isAuditingActive={isAuditingActive}
-            auditSuccessBanner={auditSuccessBanner}
-            onPerformAuditChallenge={handlePerformDailyAuditChallenge}
-            onOpenAsnModal={() => setShowAsnModal(true)}
-            onOpenTonModal={() => setShowTonModal(true)}
-          />
+        {activeDexSubTab === 'council' && (
+          <div className="max-w-3xl mx-auto">
+            <AuditorCouncilPanel
+              identity={identity}
+              nodes={nodes}
+              auditorMandates={auditorMandates}
+              isAuditingActive={isAuditingActive}
+              auditSuccessBanner={auditSuccessBanner}
+              onPerformAuditChallenge={handlePerformDailyAuditChallenge}
+              onOpenAsnModal={() => setShowAsnModal(true)}
+              onOpenTonModal={() => setShowTonModal(true)}
+            />
+          </div>
+        )}
 
-          <StorageSubscriptionPanel
-            identity={identity}
-            currentPrice={currentPrice}
-            plans={subscriptionPlans}
-            subscribedPlanSuccess={subscribedPlanSuccess}
-            onSubscribe={handleSubscribeStorage}
-          />
-        </div>
+        {activeDexSubTab === 'subscription' && (
+          <div className="max-w-3xl mx-auto">
+            <StorageSubscriptionPanel
+              identity={identity}
+              currentPrice={currentPrice}
+              plans={subscriptionPlans}
+              subscribedPlanSuccess={subscribedPlanSuccess}
+              onSubscribe={handleSubscribeStorage}
+            />
+          </div>
+        )}
       </div>
 
       {/* ASN Attestation Modal (VOPRF) */}

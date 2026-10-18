@@ -120,125 +120,117 @@ export const SwarmFleetView: React.FC<SwarmFleetViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 space-y-6">
-      {/* Cluster Overview Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/30 text-cyan-400 font-bold uppercase">
-                BIP-39 Единый Ключ Владельца
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Cluster Overview Header & Actions (shrink-0) */}
+      <div className="bg-slate-950/80 border-b border-slate-800 p-2.5 sm:p-4 space-y-2.5 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-cyan-950 border border-cyan-500/30 text-cyan-400 font-bold uppercase shrink-0">
+                BIP-39 Swarm
               </span>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-[11px] text-slate-400 font-mono truncate">
                 {identity.masterPublicKey.slice(0, 14)}...
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-mono mt-1">
-              Управление Флотом Нод
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-              На одном BIP-39 ключе можно создавать неограниченное число нод из старых телефонов или ПК. 
-              Каждая нода отдаёт 7/8 в общую сеть и даёт вам 1/8 персонального криптооблака.
-            </p>
+            <h2 className="text-sm sm:text-base font-bold text-white font-mono mt-0.5 truncate">
+              Флот Нод и Устройств
+            </h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          {/* Action Buttons: Horizontal scroll on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none shrink-0">
+            <button
+              id="btn-add-new-node-modal"
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition shadow-md shrink-0 cursor-pointer font-mono"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Подключить устройство</span>
+            </button>
+
             <button
               id="btn-open-kademlia-engine"
               onClick={() => setShowKademliaModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-purple-950/70 hover:bg-purple-900/90 text-purple-200 border border-purple-500/40 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900/90 text-purple-200 border border-purple-500/40 text-xs font-bold transition shrink-0 cursor-pointer font-mono"
             >
-              <Network className="w-4 h-4 text-purple-400" />
-              <span>Kademlia DHT & PoW (WS3)</span>
+              <Network className="w-3.5 h-3.5 text-purple-400" />
+              <span>Kademlia DHT</span>
             </button>
 
             <button
               id="btn-open-repair-modal"
               onClick={() => setShowRepairModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 border border-emerald-500/40 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 border border-emerald-500/40 text-xs font-bold transition shrink-0 cursor-pointer font-mono"
             >
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <span>Ремонт Чанков (WS4 Live)</span>
+              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Ремонт Чанков</span>
             </button>
 
             <button
               id="btn-open-soak-modal"
               onClick={() => setShowSoakModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shrink-0 cursor-pointer font-mono"
             >
-              <Calendar className="w-4 h-4 text-cyan-400" />
-              <span>14-Дней Soak-Тест (WS6)</span>
+              <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+              <span>14-Дней Soak</span>
             </button>
 
             <button
               id="btn-open-swarm-health-modal"
               onClick={() => setShowSwarmHealthModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shrink-0 cursor-pointer font-mono"
             >
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Здоровье & Anti-Outsource</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Anti-Outsource</span>
             </button>
 
             <button
               id="btn-open-grok-sim-lab"
               onClick={() => setShowSimLabModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shadow-lg shrink-0 cursor-pointer font-mono"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition shrink-0 cursor-pointer font-mono"
             >
-              <Cpu className="w-4 h-4 text-cyan-400" />
-              <span>Монте-Карло Анализ (Grok)</span>
-            </button>
-
-            <button
-              id="btn-add-new-node-modal"
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition shadow-lg shadow-cyan-950/50 shrink-0 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Подключить старый телефон / ПК</span>
+              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Grok Sim</span>
             </button>
           </div>
         </div>
 
-        {/* Global Cluster Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 border-t border-slate-800/80 text-xs">
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-slate-400">Всего нод в связке:</span>
-            <div className="text-xl font-black text-white font-mono mt-1">
-              {onlineCount} <span className="text-sm font-normal text-slate-400">/ {nodes.length} онлайн</span>
+        {/* Global Cluster Stats in 4 Compact Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+          <div className="bg-slate-900 p-2 sm:p-2.5 rounded-xl border border-slate-800">
+            <span className="text-[10px] text-slate-400">НОДЫ ОНЛАЙН:</span>
+            <div className="text-sm sm:text-base font-black text-white mt-0.5">
+              {onlineCount} <span className="text-[10px] font-normal text-slate-400">/ {nodes.length}</span>
             </div>
           </div>
 
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-slate-400">Совокупная сеть (16GB блоки):</span>
-            <div className="text-xl font-black text-cyan-400 font-mono mt-1">
+          <div className="bg-slate-900 p-2 sm:p-2.5 rounded-xl border border-slate-800">
+            <span className="text-[10px] text-slate-400">ЕМКОСТЬ СЕТИ:</span>
+            <div className="text-sm sm:text-base font-black text-cyan-400 mt-0.5">
               {totalFleetStorage} GB
             </div>
           </div>
 
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-slate-400">Суммарная квота 1/8:</span>
-            <div className="text-xl font-black text-purple-400 font-mono mt-1">
+          <div className="bg-slate-900 p-2 sm:p-2.5 rounded-xl border border-slate-800">
+            <span className="text-[10px] text-slate-400">КВОТА СЕЙФА 1/8:</span>
+            <div className="text-sm sm:text-base font-black text-purple-400 mt-0.5">
               {totalVaultBonus.toFixed(1)} GB
             </div>
           </div>
 
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-slate-400">Штрафов за сбои:</span>
-            <div className="text-xl font-black text-amber-400 font-mono mt-1">
+          <div className="bg-slate-900 p-2 sm:p-2.5 rounded-xl border border-slate-800">
+            <span className="text-[10px] text-slate-400">ШТРАФЫ ЗА СБОИ:</span>
+            <div className="text-sm sm:text-base font-black text-amber-400 mt-0.5">
               {nodes.reduce((sum, n) => sum + n.penaltiesCount, 0)}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Nodes Cards Grid */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Network className="w-5 h-5 text-emerald-400" />
-          Все Устройства в Вашем Пространстве
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Dedicated Scrollable Device Nodes List (flex-1 min-h-0 overflow-y-auto) */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {nodes.map(node => {
             const isGraceActive = node.id === graceNodeId && graceRemainingSeconds !== null;
 

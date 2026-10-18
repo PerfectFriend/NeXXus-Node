@@ -83,6 +83,15 @@ export const ManualView: React.FC<ManualViewProps> = ({
               <Download className="w-4 h-4" />
               <span>Скачать .DEB (51 KB)</span>
             </a>
+            <a
+              href="/MARKET_FORECAST_AND_TOKENOMICS_3Y.md"
+              download="NeXXUs_3Y_Market_Forecast_and_Tokenomics.md"
+              className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs font-mono transition flex items-center gap-2 shadow-lg shadow-cyan-600/20"
+              title="Скачать полный отчет по рыночному прогнозу на 3 года и токеномике старых смартфонов"
+            >
+              <Download className="w-4 h-4" />
+              <span>Отчёт на 3 года (.MD)</span>
+            </a>
             <button
               onClick={onOpenBip39Modal}
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono transition flex items-center gap-2 border border-slate-700"
