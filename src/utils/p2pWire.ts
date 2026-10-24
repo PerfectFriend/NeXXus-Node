@@ -257,3 +257,17 @@ export function decodeStoreChunk(payload: Uint8Array): StoreChunkPayload {
     data,
   };
 }
+
+// Aliases and payload encode/decode helpers
+export const encodeP2PFrame = serializeWireMessage;
+export const decodeP2PFrame = deserializeWireMessage;
+export const encodeStoreChunkPayload = encodeStoreChunk;
+export const decodeStoreChunkPayload = decodeStoreChunk;
+
+export function encodeStoreChunkAckPayload(ack: StoreChunkAckPayload): Uint8Array {
+  return encodeJsonPayload(ack);
+}
+
+export function decodeStoreChunkAckPayload(raw: Uint8Array): StoreChunkAckPayload {
+  return decodeJsonPayload<StoreChunkAckPayload>(raw);
+}

@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   UserPlus, QrCode, Share2, Copy, Check, Camera, 
-  ArrowLeft, X, Sparkles, Shield, User, Globe, Download, Send
+  ArrowLeft, X, Sparkles, Shield, User, Globe, Download, Send,
+  Upload, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { Bip39Identity } from '../types/nexxus';
+import { decodeQrFromMedia, decodeQrFromFile } from '../utils/qrDecoder';
+import { generateQrDataUrl, formatContactQrUri, downloadQrCodePng } from '../utils/qrCodeService';
 
 interface ContactManagerModalProps {
   isOpen: boolean;
@@ -33,13 +36,196 @@ export const ContactManagerModal: React.FC<ContactManagerModalProps> = ({
   const [isCopiedOnion, setIsCopiedOnion] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 
-  // Camera simulator
-  const [isScanning, setIsScanning] = useState(false);
+  // Real Camera & Scanner State
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  const handleScannedText = (rawText: string) => {
+    let name = 'Новый Контакт';
+    let onion = rawText.trim();
 
-  const contactDeepLink = `nexxus://contact?addr=${identity.accountAddress}&onion=${onionAddress}&name=NeXXusUser`;
+    if (rawText.startsWith('nexxus://contact')) {
+      try {
+        const url = new URL(rawText.replace('nexxus://contact', 'https://nexxus.local'));
+        name = url.searchParams.get('name') || name;
+        onion = url.searchParams.get('onion') || url.searchParams.get('addr') || onion;
+      } catch {}
+    } else if (rawText.includes('onion=')) {
+      const match = rawText.match(/onion=([a-z0-9.]+)/i);
+      if (match) onion = match[1];
+    }
+
+    setNewContactName(name);
+    setNewContactAddress(onion);
+    setActiveTab('add_contact');
+    setAddSuccessMessage(`QR-код успешно распознан: ${name}`);
+  };
+
+  // Real Camera Lifecycle
+  useEffect(() => {
+    let mounted = true;
+
+    async function startCamera() {
+      if (activeTab !== 'scan_camera' || !isOpen) return;
+      setCameraError(null);
+      setIsCameraActive(false);
+
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        setCameraError('Камера не поддерживается в текущем браузере.');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+        if (!mounted) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+        setIsCameraActive(true);
+
+        // Universal frame scanning (BarcodeDetector or jsQR Canvas fallback)
+        const interval = setInterval(async () => {
+          if (!mounted || !videoRef.current || videoRef.current.readyState < 2) return;
+          try {
+            const decoded = await decodeQrFromMedia(videoRef.current);
+            if (decoded && decoded.data) {
+              clearInterval(interval);
+              handleScannedText(decoded.data);
+            }
+          } catch {}
+        }, 300);
+
+        return () => clearInterval(interval);
+      } catch (err: any) {
+        if (mounted) {
+          setCameraError(
+            err.name === 'NotAllowedError' 
+              ? 'Доступ к камере заблокирован. Разрешите камеру в настройках браузера или загрузите фото QR.' 
+              : 'Не удалось активировать видеопоток камеры.'
+          );
+        }
+      }
+    }
+
+    startCamera();
+
+    return () => {
+      mounted = false;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      setIsCameraActive(false);
+    };
+  }, [activeTab, isOpen]);
+
+  // Handle uploaded QR image file with universal decoder
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const result = await decodeQrFromFile(file);
+      if (result && result.data) {
+        handleScannedText(result.data);
+      } else {
+        setCameraError('QR-код не обнаружен на загруженном изображении.');
+      }
+    } catch {
+      setCameraError('Ошибка обработки файла изображения.');
+    }
+  };
+
+  // Test genuine QR Generation & Recognition loopback in real-time
+  const [isTestingQrLoopback, setIsTestingQrLoopback] = useState(false);
+  const handleTestLiveQrLoopback = async () => {
+    setIsTestingQrLoopback(true);
+    setCameraError(null);
+    try {
+      const randSuffix = Math.random().toString(36).substring(2, 7);
+      const testUri = `nexxus://contact?addr=nx1q${randSuffix}&onion=peer${randSuffix}0123456789012345678901234567890123456789.onion:9050&name=P2P_Peer_${randSuffix.toUpperCase()}`;
+      
+      // 1. Generate real QR code image
+      const qrDataUrl = await generateQrDataUrl(testUri, { width: 320 });
+
+      // 2. Load into image element and pass to real QR decoder
+      const img = new Image();
+      img.src = qrDataUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const decoded = await decodeQrFromMedia(img);
+      if (decoded && decoded.data) {
+        handleScannedText(decoded.data);
+      } else {
+        setCameraError('Не удалось распознать сгенерированный тестовый QR-код.');
+      }
+    } catch (err: any) {
+      setCameraError(`Ошибка теста QR: ${err?.message || 'сбой декодера'}`);
+    } finally {
+      setIsTestingQrLoopback(false);
+    }
+  };
+
+  const contactDeepLink = formatContactQrUri({
+    accountAddress: identity.accountAddress,
+    onionAddress,
+    nodeName: 'NeXXusUser',
+    masterPublicKey: identity.masterPublicKey,
+  });
   const shareText = `🔐 Добавьте меня в защищенный мессенджер NeXXus!\nАдрес: ${identity.accountAddress}\nOnion: ${onionAddress}\nСсылка: ${contactDeepLink}`;
+
+  const [realQrDataUrl, setRealQrDataUrl] = useState<string>('');
+  const [isQrGenerating, setIsQrGenerating] = useState(false);
+
+  // Generate authentic scannable ISO/IEC 18004 QR Code
+  useEffect(() => {
+    let active = true;
+    setIsQrGenerating(true);
+    generateQrDataUrl(contactDeepLink, {
+      width: 320,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      darkColor: '#090d16',
+      lightColor: '#ffffff',
+    })
+      .then(url => {
+        if (active) {
+          setRealQrDataUrl(url);
+          setIsQrGenerating(false);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to generate real QR', err);
+        if (active) setIsQrGenerating(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [contactDeepLink]);
+
+  const handleDownloadQr = async () => {
+    try {
+      await downloadQrCodePng(contactDeepLink, `nexxus-contact-${identity.accountAddress.slice(0, 8)}.png`);
+      setShareFeedback('QR-код (PNG) успешно сохранён на устройство!');
+      setTimeout(() => setShareFeedback(null), 3000);
+    } catch (err) {
+      console.error('Download QR failed', err);
+    }
+  };
 
   // Native Web Share API
   const handleNativeShare = async () => {
@@ -103,6 +289,8 @@ export const ContactManagerModal: React.FC<ContactManagerModalProps> = ({
     setNewContactAddress(onion);
     setActiveTab('add_contact');
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 overflow-hidden h-full h-[100dvh]">
@@ -179,77 +367,24 @@ export const ContactManagerModal: React.FC<ContactManagerModalProps> = ({
           {activeTab === 'share_qr' && (
             <div className="flex flex-col items-center text-center space-y-3.5">
               
-              {/* Generated Crisp SVG QR Code */}
+              {/* Generated Real ISO/IEC 18004 QR Code */}
               <div className="p-3 bg-white rounded-2xl shadow-xl shadow-emerald-500/10 border-4 border-slate-800 relative group">
-                <svg
-                  className="w-48 h-48 sm:w-56 sm:h-56"
-                  viewBox="0 0 256 256"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <rect width="256" height="256" fill="#ffffff" />
-                  {/* Outer corner anchors */}
-                  <rect x="20" y="20" width="60" height="60" fill="#0b0f17" rx="8" />
-                  <rect x="30" y="30" width="40" height="40" fill="#ffffff" rx="4" />
-                  <rect x="40" y="40" width="20" height="20" fill="#10b981" rx="2" />
-
-                  <rect x="176" y="20" width="60" height="60" fill="#0b0f17" rx="8" />
-                  <rect x="186" y="30" width="40" height="40" fill="#ffffff" rx="4" />
-                  <rect x="196" y="40" width="20" height="20" fill="#10b981" rx="2" />
-
-                  <rect x="20" y="176" width="60" height="60" fill="#0b0f17" rx="8" />
-                  <rect x="30" y="186" width="40" height="40" fill="#ffffff" rx="4" />
-                  <rect x="40" y="196" width="20" height="20" fill="#10b981" rx="2" />
-
-                  {/* QR Matrix Grid Pattern */}
-                  <g fill="#0b0f17">
-                    <rect x="95" y="20" width="12" height="12" />
-                    <rect x="115" y="20" width="12" height="12" />
-                    <rect x="145" y="20" width="12" height="12" />
-                    <rect x="95" y="40" width="12" height="12" />
-                    <rect x="135" y="40" width="12" height="12" />
-                    <rect x="105" y="60" width="12" height="12" />
-                    <rect x="145" y="60" width="12" height="12" />
-
-                    {/* Middle Rows */}
-                    <rect x="20" y="95" width="12" height="12" />
-                    <rect x="40" y="95" width="12" height="12" />
-                    <rect x="60" y="95" width="12" height="12" />
-                    <rect x="95" y="95" width="12" height="12" />
-                    <rect x="115" y="95" width="26" height="26" fill="#10b981" rx="4" />
-                    <rect x="155" y="95" width="12" height="12" />
-                    <rect x="185" y="95" width="12" height="12" />
-                    <rect x="215" y="95" width="12" height="12" />
-
-                    <rect x="30" y="115" width="12" height="12" />
-                    <rect x="70" y="115" width="12" height="12" />
-                    <rect x="165" y="115" width="12" height="12" />
-                    <rect x="205" y="115" width="12" height="12" />
-
-                    <rect x="20" y="135" width="12" height="12" />
-                    <rect x="50" y="135" width="12" height="12" />
-                    <rect x="95" y="135" width="12" height="12" />
-                    <rect x="145" y="135" width="12" height="12" />
-                    <rect x="185" y="135" width="12" height="12" />
-                    <rect x="225" y="135" width="12" height="12" />
-
-                    {/* Bottom Right Area */}
-                    <rect x="95" y="176" width="12" height="12" />
-                    <rect x="135" y="176" width="12" height="12" />
-                    <rect x="176" y="176" width="12" height="12" />
-                    <rect x="215" y="176" width="12" height="12" />
-                    <rect x="115" y="196" width="12" height="12" />
-                    <rect x="155" y="196" width="12" height="12" />
-                    <rect x="195" y="196" width="12" height="12" />
-                    <rect x="95" y="215" width="12" height="12" />
-                    <rect x="135" y="215" width="12" height="12" />
-                    <rect x="176" y="215" width="12" height="12" />
-                    <rect x="225" y="215" width="12" height="12" />
-                  </g>
-                </svg>
+                {realQrDataUrl ? (
+                  <img
+                    src={realQrDataUrl}
+                    alt="NeXXus Contact QR Code"
+                    className="w-48 h-48 sm:w-56 sm:h-56 rounded-lg select-none block"
+                  />
+                ) : (
+                  <div className="w-48 h-48 sm:w-56 sm:h-56 flex flex-col items-center justify-center text-slate-500 gap-2 bg-slate-100 rounded-lg">
+                    <RefreshCw className="w-6 h-6 animate-spin text-emerald-500" />
+                    <span className="text-xs font-mono">Генерация QR...</span>
+                  </div>
+                )}
 
                 {/* Badge Overlay */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950 p-1.5 rounded-xl border-2 border-emerald-400 shadow-lg">
-                  <Shield className="w-5 h-5 text-emerald-400" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950 p-1.5 rounded-xl border-2 border-emerald-400 shadow-lg pointer-events-none">
+                  <Shield className="w-4 h-4 text-emerald-400" />
                 </div>
               </div>
 
@@ -266,7 +401,7 @@ export const ContactManagerModal: React.FC<ContactManagerModalProps> = ({
                       setShareFeedback('Адрес скопирован!');
                       setTimeout(() => setShareFeedback(null), 2000);
                     }}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 shrink-0"
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 shrink-0 cursor-pointer"
                     title="Копировать"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -280,7 +415,7 @@ export const ContactManagerModal: React.FC<ContactManagerModalProps> = ({
                   </div>
                   <button
                     onClick={handleCopyOnion}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 shrink-0"
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 shrink-0 cursor-pointer"
                     title="Копировать Onion"
                   >
                     {isCopiedOnion ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -295,22 +430,31 @@ export const ContactManagerModal: React.FC<ContactManagerModalProps> = ({
                 </div>
               )}
 
-              {/* Multi-channel Share Actions */}
-              <div className="w-full grid grid-cols-2 gap-2.5 pt-1">
+              {/* Multi-channel Share & Download Actions */}
+              <div className="w-full grid grid-cols-3 gap-2 pt-1">
                 <button
                   onClick={handleNativeShare}
-                  className="py-3 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-xs font-mono transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                  className="py-2.5 px-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-xs font-mono transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer"
                 >
-                  <Share2 className="w-4 h-4" />
-                  <span>Поделиться</span>
+                  <Share2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Поделиться</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadQr}
+                  className="py-2.5 px-2 rounded-xl bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-200 font-bold text-xs font-mono transition flex items-center justify-center gap-1.5 shadow cursor-pointer"
+                  title="Скачать изображение QR (PNG)"
+                >
+                  <Download className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                  <span className="truncate">Скачать QR</span>
                 </button>
 
                 <button
                   onClick={handleCopyLink}
-                  className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs font-mono transition flex items-center justify-center gap-1.5"
+                  className="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs font-mono transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  {isCopiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  <span>{isCopiedLink ? 'Скопировано!' : 'Копировать всё'}</span>
+                  {isCopiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
+                  <span className="truncate">{isCopiedLink ? 'Скопировано!' : 'Копировать'}</span>
                 </button>
               </div>
             </div>
@@ -410,42 +554,99 @@ export const ContactManagerModal: React.FC<ContactManagerModalProps> = ({
             </form>
           )}
 
-          {/* TAB 3: CAMERA SCANNER SIMULATOR */}
+          {/* TAB 3: REAL CAMERA SCANNER & FILE UPLOAD */}
           {activeTab === 'scan_camera' && (
-            <div className="space-y-4 text-center">
-              <div className="relative w-full h-56 rounded-2xl bg-slate-950 border-2 border-dashed border-purple-500/50 overflow-hidden flex flex-col items-center justify-center p-4">
-                {/* Visual Scanner Grid Overlay */}
-                <div className="absolute inset-x-8 top-1/4 bottom-1/4 border-2 border-purple-400 rounded-xl pointer-events-none animate-pulse">
+            <div className="space-y-3.5 text-center">
+              <div className="relative w-full h-56 rounded-2xl bg-black border-2 border-dashed border-purple-500/50 overflow-hidden flex flex-col items-center justify-center">
+                {/* Live Camera Video Feed */}
+                <video
+                  ref={videoRef}
+                  playsInline
+                  autoPlay
+                  muted
+                  className={`absolute inset-0 w-full h-full object-cover ${isCameraActive ? 'opacity-100' : 'opacity-0'}`}
+                />
+
+                {/* Visual Scanner Frame Overlay */}
+                <div className="absolute inset-x-8 top-1/4 bottom-1/4 border-2 border-purple-400 rounded-xl pointer-events-none z-10">
                   <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-bounce mt-10" />
                 </div>
 
-                <Camera className="w-10 h-10 text-purple-400 mb-2 opacity-80" />
-                <div className="text-xs font-mono font-bold text-white">
-                  Камера готова к распознаванию
-                </div>
-                <div className="text-[11px] text-slate-400 font-mono mt-1 max-w-xs">
-                  Наведите камеру смартфона на QR-код контакта или выберите готовый тестовый образец:
-                </div>
+                {!isCameraActive && !cameraError && (
+                  <div className="relative z-10 p-4 flex flex-col items-center">
+                    <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                    <div className="text-xs font-mono font-bold text-white">
+                      Подключение к оптическому сенсору...
+                    </div>
+                  </div>
+                )}
+
+                {cameraError && (
+                  <div className="relative z-10 p-4 max-w-xs text-center flex flex-col items-center">
+                    <AlertCircle className="w-8 h-8 text-amber-400 mb-1.5" />
+                    <div className="text-xs font-mono text-amber-200">
+                      {cameraError}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              {/* Upload QR Image File Button & Hidden Input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleImageFileUpload}
+                className="hidden"
+              />
+
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleSimulateScan('Sovereign DAO Relayer', 'dao7relay89qwert0123456789abcdef.onion:9050')}
-                  className="p-2.5 rounded-xl bg-slate-950 hover:bg-purple-950/50 border border-purple-500/40 text-xs font-mono text-purple-200 transition"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="py-2.5 px-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-500/50 text-purple-200 text-xs font-mono font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <div className="font-bold truncate">📡 DAO Relayer</div>
-                  <div className="text-[10px] text-slate-400 truncate">Сканировать QR</div>
+                  <Upload className="w-3.5 h-3.5" />
+                  <span className="truncate">Загрузить фото QR</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => handleSimulateScan('Elena (Mobile Mesh)', 'elena9mobile1234567890abcdef.onion:9050')}
-                  className="p-2.5 rounded-xl bg-slate-950 hover:bg-cyan-950/50 border border-cyan-500/40 text-xs font-mono text-cyan-200 transition"
+                  disabled={isTestingQrLoopback}
+                  onClick={handleTestLiveQrLoopback}
+                  className="py-2.5 px-3 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-200 text-xs font-mono font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  title="Сгенерировать реальный QR и распознать его оптическим декодером jsQR"
                 >
-                  <div className="font-bold truncate">📱 Elena (Mesh)</div>
-                  <div className="text-[10px] text-slate-400 truncate">Сканировать QR</div>
+                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingQrLoopback ? 'animate-spin' : ''}`} />
+                  <span className="truncate">{isTestingQrLoopback ? 'Тестирование...' : 'Тест QR-декодера'}</span>
                 </button>
+              </div>
+
+              {/* Fast Test Samples */}
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[11px] font-mono text-slate-400 font-bold text-left flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  Или протестируйте добавление в 1 клик:
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleScannedText('nexxus://contact?addr=nx1qrelay89&onion=dao7relay89qwert0123456789abcdef.onion:9050&name=Sovereign_DAO_Relayer')}
+                    className="p-2 rounded-xl bg-slate-950 hover:bg-purple-950/50 border border-purple-500/40 text-xs font-mono text-purple-200 transition text-left"
+                  >
+                    <div className="font-bold truncate">📡 DAO Relayer</div>
+                    <div className="text-[10px] text-slate-400 truncate">Тестовый QR-пакет</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleScannedText('nexxus://contact?addr=nx1qmesh44&onion=elena9mobile1234567890abcdef.onion:9050&name=Elena_Mobile_Mesh')}
+                    className="p-2 rounded-xl bg-slate-950 hover:bg-cyan-950/50 border border-cyan-500/40 text-xs font-mono text-cyan-200 transition text-left"
+                  >
+                    <div className="font-bold truncate">📱 Elena (Mesh)</div>
+                    <div className="text-[10px] text-slate-400 truncate">Тестовый QR-пакет</div>
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -5,7 +5,7 @@ import {
   Server, Trash2, Search, Filter, ShieldAlert, Sparkles, X, Check, ArrowLeft
 } from 'lucide-react';
 import { VaultFile, ChunkRecord, NodeRecord, StorageTier } from '../types/nexxus';
-import { sliceFileInto16KbChunks, formatBytes, CHUNK_SIZE_BYTES } from '../utils/chunkEngine';
+import { sliceFileInto16KbChunks, formatBytes, CHUNK_SIZE_BYTES, reassembleAndDecryptFile } from '../utils/chunkEngine';
 import { getAllChunksForFile } from '../utils/indexedDbStore';
 
 interface PersonalVaultFileManagerProps {
@@ -122,12 +122,11 @@ export const PersonalVaultFileManager: React.FC<PersonalVaultFileManagerProps> =
     setIsDecryptionComplete(true);
 
     try {
-      const storedChunks = await getAllChunksForFile(file.id);
+      const decryptedBytes = await reassembleAndDecryptFile(file.id, file.chunksCount);
       let blob: Blob;
 
-      if (storedChunks && storedChunks.length > 0) {
-        const blobParts: BlobPart[] = storedChunks.map(c => c.buffer.slice(c.byteOffset, c.byteOffset + c.byteLength));
-        blob = new Blob(blobParts, { type: file.mimeType || 'application/octet-stream' });
+      if (decryptedBytes && decryptedBytes.length > 0) {
+        blob = new Blob([decryptedBytes], { type: file.mimeType || 'application/octet-stream' });
       } else {
         const dummyContent = `[NeXXUs Sovereign Vault]\nФайл: ${file.name}\nРазмер: ${file.sizeBytes} байт\nMerkle Root: ${file.rootHash}\nАлгоритм: ${file.encryptionAlgorithm}\nРепликация: ${file.storageTier || 'RF=6x'}\nРасшифровано на клиенте с помощью мастер-ключа m/44'/9999'/0'/1'/0.`;
         blob = new Blob([dummyContent], { type: file.mimeType || 'text/plain' });

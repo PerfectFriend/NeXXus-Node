@@ -5,7 +5,7 @@ import {
   Clock, ShieldAlert, Sparkles, Activity
 } from 'lucide-react';
 import { VaultFile, ChunkRecord, NodeRecord, Bip39Identity, StorageTier } from '../types/nexxus';
-import { sliceFileInto16KbChunks, formatBytes, CHUNK_SIZE_BYTES } from '../utils/chunkEngine';
+import { sliceFileInto16KbChunks, formatBytes, CHUNK_SIZE_BYTES, reassembleAndDecryptFile } from '../utils/chunkEngine';
 import { getAllChunksForFile } from '../utils/indexedDbStore';
 import { calculateDynamicVaultQuota, evaluateDegradationSchedule, calculateAntiLoopModel } from '../utils/storageManager';
 import { deriveBipSplitKeys } from '../utils/bip39';
@@ -135,19 +135,24 @@ export const VaultView: React.FC<VaultViewProps> = ({
     setRetrievalStatusText(`Файл успешно восстановлен из распределённого кворума!`);
     setIsDecryptionComplete(true);
 
-    // Trigger browser file download: real binary data if present in IndexedDB, or cryptographic receipt
+    // Trigger browser file download: real binary data reassembled and decrypted with ChaCha20-Poly1305, or authenticated proof fallback
     try {
-      const storedChunks = await getAllChunksForFile(file.id);
+      const decryptedBytes = await reassembleAndDecryptFile(file.id, file.chunksCount);
       let blob: Blob;
 
-      if (storedChunks && storedChunks.length > 0) {
-        // Reassemble actual binary chunk slices
-        const blobParts: BlobPart[] = storedChunks.map(c => c.buffer.slice(c.byteOffset, c.byteOffset + c.byteLength));
-        blob = new Blob(blobParts, { type: file.mimeType || 'application/octet-stream' });
+      if (decryptedBytes && decryptedBytes.length > 0) {
+        blob = new Blob([decryptedBytes], { type: file.mimeType || 'application/octet-stream' });
       } else {
-        // Authenticated proof fallback for mock files
-        const dummyContent = `[NeXXUs Decentralized Storage]\nFile: ${file.name}\nSize: ${file.sizeBytes} bytes\nRootHash: ${file.rootHash}\nAlgorithm: ${file.encryptionAlgorithm}\nReplication Factor: RF=6x\nDecrypted successfully on client device via Vault Master Key m/44'/9999'/0'/1'/0.`;
-        blob = new Blob([dummyContent], { type: file.mimeType || 'text/plain' });
+        // Fallback check in storedChunks directly
+        const storedChunks = await getAllChunksForFile(file.id);
+        if (storedChunks && storedChunks.length > 0) {
+          const blobParts: BlobPart[] = storedChunks.map(c => c.buffer.slice(c.byteOffset, c.byteOffset + c.byteLength));
+          blob = new Blob(blobParts, { type: file.mimeType || 'application/octet-stream' });
+        } else {
+          // Authenticated proof fallback for mock files
+          const dummyContent = `[NeXXUs Decentralized Storage]\nFile: ${file.name}\nSize: ${file.sizeBytes} bytes\nRootHash: ${file.rootHash}\nAlgorithm: ${file.encryptionAlgorithm}\nReplication Factor: RF=6x\nDecrypted successfully on client device via Vault Master Key m/44'/9999'/0'/1'/0.`;
+          blob = new Blob([dummyContent], { type: file.mimeType || 'text/plain' });
+        }
       }
 
       const url = URL.createObjectURL(blob);

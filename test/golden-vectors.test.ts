@@ -121,3 +121,5 @@ for (const tc of v5.cases) {
 console.log('\n================================================================');
 console.log('🎉 Golden Vectors Verification Complete: ALL TESTS PASSED!');
 console.log('================================================================\n');
+
+process.exit(0);

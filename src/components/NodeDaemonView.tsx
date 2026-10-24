@@ -141,14 +141,37 @@ export const NodeDaemonView: React.FC<NodeDaemonViewProps> = ({
     });
   };
 
-  // Add new simulated OTG Drive
-  const handleAddOtgDrive = () => {
-    const newId = `otg_${Date.now()}`;
+  // Add external drive (via File System Access API directory picker or OTG profile)
+  const handleAddOtgDrive = async () => {
+    let driveName = 'Samsung FIT Plus 128GB USB 3.1 OTG';
+    let capacityGb = 128;
+
+    if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker({
+          id: 'nexxus-external-drive',
+          mode: 'readwrite',
+        });
+        if (dirHandle && dirHandle.name) {
+          driveName = `Том: ${dirHandle.name} (FS Access)`;
+          if (navigator.storage && navigator.storage.estimate) {
+            const est = await navigator.storage.estimate();
+            if (est.quota) {
+              capacityGb = Math.max(32, Math.round(est.quota / (1024 * 1024 * 1024)));
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return; // User cancelled prompt
+      }
+    }
+
+    const newId = `ext_${Date.now()}`;
     const newDevice = {
       id: newId,
-      name: 'Samsung FIT Plus 128GB USB 3.1 OTG',
+      name: driveName,
       type: 'usb_otg' as const,
-      capacityGb: 128,
+      capacityGb,
       mounted: true,
     };
     const updatedDevices = [...currentNode.externalDevices, newDevice];

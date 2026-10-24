@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { 
   ArrowLeft, ShoppingBag, Download, Check, Shield, Lock, 
-  Sparkles, ExternalLink, Smartphone, Star, Terminal, Radio, HardDrive, MessageSquare
+  Sparkles, ExternalLink, Smartphone, Star, Terminal, Radio, HardDrive, MessageSquare, Play
 } from 'lucide-react';
+import { Bip39Identity } from '../types/nexxus';
+import { SdkPlaygroundModal } from './SdkPlaygroundModal';
+import { RadioMeshModal } from './RadioMeshModal';
 
 interface AppItem {
   id: string;
@@ -21,14 +24,20 @@ interface AppItem {
 interface AppStoreModalProps {
   onNavigateBackToChat: () => void;
   onOpenVault?: () => void;
+  onOpenNodeDaemon?: () => void;
+  identity?: Bip39Identity;
 }
 
 export const AppStoreModal: React.FC<AppStoreModalProps> = ({
   onNavigateBackToChat,
   onOpenVault,
+  onOpenNodeDaemon,
+  identity,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'core' | 'privacy' | 'storage' | 'devtools'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSdkOpen, setIsSdkOpen] = useState(false);
+  const [isRadioOpen, setIsRadioOpen] = useState(false);
   const [apps, setApps] = useState<AppItem[]>([
     {
       id: 'app_messenger',
@@ -122,6 +131,20 @@ export const AppStoreModal: React.FC<AppStoreModalProps> = ({
                          app.tagline.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesQuery;
   });
+
+  const handleLaunchApp = (appId: string) => {
+    if (appId === 'app_messenger') {
+      onNavigateBackToChat();
+    } else if (appId === 'app_vault') {
+      if (onOpenVault) onOpenVault();
+    } else if (appId === 'app_daemon') {
+      if (onOpenNodeDaemon) onOpenNodeDaemon();
+    } else if (appId === 'app_sdk') {
+      setIsSdkOpen(true);
+    } else if (appId === 'app_radio_mesh') {
+      setIsRadioOpen(true);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-[#0b0f17] text-slate-100 overflow-hidden h-full">
@@ -229,35 +252,52 @@ export const AppStoreModal: React.FC<AppStoreModalProps> = ({
                   {app.version} • {app.sizeMb} MB
                 </span>
 
-                {app.isPreinstalledSuite ? (
-                  <span className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-emerald-400" /> Предустановлено
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => handleToggleInstall(app.id)}
-                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 ${
-                      app.installed
-                        ? 'bg-slate-800 text-slate-300 hover:bg-red-950/40 hover:text-red-300 hover:border-red-500/30'
-                        : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm'
-                    }`}
-                  >
-                    {app.installed ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" /> Установлено
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-3.5 h-3.5" /> Установить
-                      </>
-                    )}
-                  </button>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {app.installed && (
+                    <button
+                      onClick={() => handleLaunchApp(app.id)}
+                      className="px-2.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow transition cursor-pointer"
+                    >
+                      <Play className="w-3 h-3 fill-current" /> Запуск
+                    </button>
+                  )}
+
+                  {app.isPreinstalledSuite ? (
+                    <span className="px-2.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs flex items-center gap-1">
+                      <Check className="w-3 h-3 text-emerald-400" /> В комплекте
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleToggleInstall(app.id)}
+                      className={`px-2.5 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1 ${
+                        app.installed
+                          ? 'bg-slate-800 text-slate-400 hover:text-red-300 hover:bg-red-950/40'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm'
+                      }`}
+                    >
+                      {app.installed ? <Check className="w-3 h-3 text-emerald-400" /> : <Download className="w-3 h-3" />}
+                      <span>{app.installed ? 'Готово' : 'Установить'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Sdk Developer Console Modal */}
+      <SdkPlaygroundModal
+        isOpen={isSdkOpen}
+        onClose={() => setIsSdkOpen(false)}
+      />
+
+      {/* Sovereign P2P Radio & Mesh Modal */}
+      <RadioMeshModal
+        isOpen={isRadioOpen}
+        onClose={() => setIsRadioOpen(false)}
+        identity={identity || ({} as any)}
+      />
     </div>
   );
 };

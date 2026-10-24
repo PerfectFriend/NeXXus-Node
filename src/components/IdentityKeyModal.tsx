@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Key, Copy, Check, RefreshCw, X, Shield, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Key, Copy, Check, RefreshCw, X, Shield, AlertCircle, Eye, EyeOff, QrCode, Download, Printer } from 'lucide-react';
 import { Bip39Identity } from '../types/nexxus';
 import { generateBip39Mnemonic, deriveIdentityFromMnemonic, deriveBipSplitKeys } from '../utils/bip39';
+import { generateQrDataUrl, generateQrSvgString } from '../utils/qrCodeService';
 
 interface IdentityKeyModalProps {
   isOpen: boolean;
@@ -18,7 +19,26 @@ export const IdentityKeyModal: React.FC<IdentityKeyModalProps> = ({
 }) => {
   const [copiedWords, setCopiedWords] = useState(false);
   const [showWords, setShowWords] = useState(true);
-  const [activeTab, setActiveTab] = useState<'mnemonic' | 'bipsplit'>('mnemonic');
+  const [activeTab, setActiveTab] = useState<'mnemonic' | 'bipsplit' | 'paper_qr'>('mnemonic');
+  const [paperQrUrl, setPaperQrUrl] = useState<string>('');
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'paper_qr' && !paperQrUrl) {
+      setIsGeneratingQr(true);
+      const backupPayload = JSON.stringify({
+        schema: 'nexxus-bip39-v2',
+        mnemonic: identity.mnemonic,
+        masterPublicKey: identity.masterPublicKey,
+        onionAddress: identity.onionAddress,
+        createdAt: identity.createdAt || Date.now()
+      });
+      generateQrDataUrl(backupPayload, { width: 360, margin: 2, errorCorrectionLevel: 'M' })
+        .then(url => setPaperQrUrl(url))
+        .catch(err => console.error('Failed to generate paper wallet QR:', err))
+        .finally(() => setIsGeneratingQr(false));
+    }
+  }, [activeTab, identity, paperQrUrl]);
 
   if (!isOpen) return null;
 
@@ -86,7 +106,18 @@ export const IdentityKeyModal: React.FC<IdentityKeyModalProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            BIP-Split Дерево (WS1 Изоляция)
+            BIP-Split (Изоляция)
+          </button>
+          <button
+            onClick={() => setActiveTab('paper_qr')}
+            className={`flex-1 py-1.5 rounded-lg font-semibold transition flex items-center justify-center gap-1.5 ${
+              activeTab === 'paper_qr'
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            Paper Wallet (QR)
           </button>
         </div>
 
@@ -155,7 +186,7 @@ export const IdentityKeyModal: React.FC<IdentityKeyModalProps> = ({
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'bipsplit' ? (
           /* BIP-Split Derivation Tree View */
           <div className="space-y-3.5 text-xs">
             <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] space-y-1">
@@ -204,6 +235,88 @@ export const IdentityKeyModal: React.FC<IdentityKeyModalProps> = ({
             <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-[11px] text-emerald-300 font-mono flex items-center justify-between">
               <span>Донор может расшифровать сейф?</span>
               <strong className="text-red-400 uppercase">НЕТ (Однонаправленная KDF)</strong>
+            </div>
+          </div>
+        ) : (
+          /* Paper Wallet (Authentic ISO/IEC 18004 QR Code) View */
+          <div className="space-y-4 text-xs">
+            <div className="p-4 rounded-2xl bg-white text-slate-950 border border-amber-400 shadow-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-xs tracking-wider bg-slate-900 text-amber-300 px-2 py-0.5 rounded">
+                    NEXXUS COLD BACKUP
+                  </span>
+                  <span className="text-[10px] text-slate-600 font-mono">BIP-39 • Ed25519</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-500">
+                  {new Date().toLocaleDateString('ru-RU')}
+                </span>
+              </div>
+
+              {/* QR and Details side-by-side */}
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-44 h-44 bg-white p-2 border-2 border-slate-900 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                  {isGeneratingQr ? (
+                    <div className="text-slate-400 font-mono text-[10px] animate-pulse">Генерация QR...</div>
+                  ) : paperQrUrl ? (
+                    <img
+                      src={paperQrUrl}
+                      alt="NeXXus Paper Wallet QR"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-slate-400 font-mono text-[10px]">QR недоступен</div>
+                  )}
+                </div>
+
+                <div className="space-y-2 flex-1 min-w-0 w-full text-slate-800">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block">12 Слов мнемоники:</span>
+                    <div className="grid grid-cols-2 gap-1 mt-1 font-mono text-[10px] bg-slate-100 p-2 rounded-lg border border-slate-300">
+                      {identity.mnemonic.map((w, i) => (
+                        <div key={i} className="truncate">
+                          <span className="text-slate-400">{i + 1}.</span> <strong>{w}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] font-bold uppercase text-slate-500 block">Корневой Tor Onion:</span>
+                    <span className="font-mono text-[9px] text-slate-700 break-all block">
+                      {identity.onionAddress}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-slate-500 border-t border-slate-200 pt-1.5 flex items-center justify-between">
+                <span>Хранить в защищённом от влаги и огня месте.</span>
+                <span className="font-mono text-[9px]">NeXXus v2.0 Standard</span>
+              </div>
+            </div>
+
+            {/* Action Buttons: Download PNG & Print */}
+            <div className="flex items-center gap-2 pt-1">
+              {paperQrUrl && (
+                <a
+                  href={paperQrUrl}
+                  download={`nexxus_paper_wallet_${Date.now()}.png`}
+                  className="flex-1 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Скачать QR (PNG)
+                </a>
+              )}
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-400" />
+                Распечатать
+              </button>
             </div>
           </div>
         )}

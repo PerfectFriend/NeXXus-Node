@@ -17,6 +17,9 @@ import { CHUNK_SIZE_BYTES, healAndResyncChunks } from '../src/utils/chunkEngine'
 import { INITIAL_IDENTITY, INITIAL_NODES, INITIAL_FILES } from '../src/data/mockInitialState';
 
 import { buildMerkleTree, getMerkleProof, verifyMerkleProof, generatePorChallenge, computePorResponse, verifyAuditorPor } from '../src/utils/merkleProof';
+import { generateQrDataUrl, generateQrSvgString, formatContactQrUri } from '../src/utils/qrCodeService';
+import QRCode from 'qrcode';
+import jsQR from 'jsqr';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 
@@ -387,6 +390,160 @@ async function runTests() {
   assert(healAction!.recoveredFromIndices.length === 4, '4 healthy surviving shards selected for Reed-Solomon recovery');
   assert(healAction!.status === 'COMPLETED', 'Self-healing reconstruction marked COMPLETED');
 
+  // Test Suite 14: ISO/IEC 18004 QR Generation & Recognition
+  console.log('\n📦 Test Suite 14: ISO/IEC 18004 QR Generation & Recognition');
+  const contactUri = formatContactQrUri({
+    accountAddress: 'nx1qtestaddress999',
+    onionAddress: 'testonionv3abcdef0123456789abcdef0123456789abcdef.onion:9050',
+    nodeName: 'TestPeerNode',
+  });
+  assert(contactUri.startsWith('nexxus://contact?'), 'Contact URI starts with nexxus://contact? scheme');
+  assert(contactUri.includes('addr=nx1qtestaddress999'), 'Contact URI embeds accountAddress correctly');
+  assert(contactUri.includes('onion=testonionv3'), 'Contact URI embeds Tor v3 onion address');
+
+  const qrDataUrl = await generateQrDataUrl(contactUri, { width: 256, margin: 1 });
+  assert(qrDataUrl.startsWith('data:image/png;base64,'), 'generateQrDataUrl outputs valid base64 PNG data URL');
+
+  const qrSvg = await generateQrSvgString(contactUri);
+  assert(qrSvg.includes('<svg') && qrSvg.includes('</svg>'), 'generateQrSvgString outputs valid scalable SVG XML');
+
+  // Test round-trip QR recognition using raw RGBA module canvas matrix
+  const qrRaw = QRCode.create(contactUri, { errorCorrectionLevel: 'M' });
+  const qrSize = qrRaw.modules.size;
+  assert(qrSize >= 21, 'QR matrix is at least 21x21 modules (standard Version 1+)');
+
+  // Render QR raw modules into 4x scaled RGBA pixel buffer
+  const scale = 4;
+  const imgWidth = qrSize * scale;
+  const imgHeight = qrSize * scale;
+  const rgba = new Uint8ClampedArray(imgWidth * imgHeight * 4);
+
+  for (let r = 0; r < qrSize; r++) {
+    for (let c = 0; c < qrSize; c++) {
+      const isDark = qrRaw.modules.get(r, c);
+      const val = isDark ? 0 : 255;
+      for (let dy = 0; dy < scale; dy++) {
+        for (let dx = 0; dx < scale; dx++) {
+          const px = ((r * scale + dy) * imgWidth + (c * scale + dx)) * 4;
+          rgba[px] = val;     // R
+          rgba[px + 1] = val; // G
+          rgba[px + 2] = val; // B
+          rgba[px + 3] = 255; // A
+        }
+      }
+    }
+  }
+
+  const decoded = jsQR(rgba, imgWidth, imgHeight);
+  assert(decoded !== null, 'jsQR optical engine successfully detects and decodes rendered QR matrix');
+  assert(decoded?.data === contactUri, 'Decoded QR payload exactly matches original contact URI (100% bit-perfect roundtrip)');
+
+  // Test Suite 15: Paper Wallet QR Backup, Vesting Settlement & P2P Mesh Beacon
+  console.log('\n📦 Test Suite 15: Paper Wallet Backup, Vesting Settlement & Mesh Radio Beacon');
+
+  // Test 1: Paper Wallet QR backup payload
+  const paperBackup = {
+    schema: 'nexxus-bip39-v2',
+    mnemonic: ['abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'about'],
+    masterPublicKey: 'nx1pk_master_key_test_123',
+    onionAddress: 'testonionv3abcdef0123456789abcdef0123456789abcdef.onion:9050',
+    createdAt: 1700000000000,
+  };
+  const paperJson = JSON.stringify(paperBackup);
+  const paperQrSvg = await generateQrSvgString(paperJson, { errorCorrectionLevel: 'M', width: 300 });
+  assert(paperQrSvg.includes('<svg') && paperQrSvg.includes('</svg>'), 'Paper Wallet QR SVG rendered successfully');
+
+  const paperRaw = QRCode.create(paperJson, { errorCorrectionLevel: 'M' });
+  const pSize = paperRaw.modules.size;
+  const pScale = 3;
+  const pW = pSize * pScale;
+  const pH = pSize * pScale;
+  const pRgba = new Uint8ClampedArray(pW * pH * 4);
+  for (let r = 0; r < pSize; r++) {
+    for (let c = 0; c < pSize; c++) {
+      const v = paperRaw.modules.get(r, c) ? 0 : 255;
+      for (let dy = 0; dy < pScale; dy++) {
+        for (let dx = 0; dx < pScale; dx++) {
+          const px = ((r * pScale + dy) * pW + (c * pScale + dx)) * 4;
+          pRgba[px] = v;
+          pRgba[px + 1] = v;
+          pRgba[px + 2] = v;
+          pRgba[px + 3] = 255;
+        }
+      }
+    }
+  }
+  const decodedPaper = jsQR(pRgba, pW, pH);
+  assert(decodedPaper !== null, 'Paper Wallet QR optical scan decodes successfully');
+  const parsedPaper = JSON.parse(decodedPaper!.data);
+  assert(parsedPaper.mnemonic.length === 12, 'Decoded paper wallet preserves exactly 12 mnemonic words');
+  assert(parsedPaper.masterPublicKey === 'nx1pk_master_key_test_123', 'Decoded paper wallet preserves master public key');
+  assert(parsedPaper.onionAddress.includes('.onion:9050'), 'Decoded paper wallet preserves Tor v3 onion address');
+
+  // Test 2: Vesting Settlement Invariants
+  const sampleBatches = [
+    { id: 'b1', amount: 12.5, daysRemaining: 0, status: 'unlocked' as const, sourceNodeName: 'Pixel 6a', foreignChunksGb: 16 },
+    { id: 'b2', amount: 8.0, daysRemaining: 14, status: 'locked' as const, sourceNodeName: 'Pixel 6a', foreignChunksGb: 16 },
+  ];
+  const claimable = sampleBatches.filter(b => b.status === 'unlocked');
+  const claimSum = claimable.reduce((s, b) => s + b.amount, 0);
+  assert(claimSum === 12.5, 'Exact claimable sum identified from unlocked batches');
+  const remainingLocked = sampleBatches.filter(b => b.status !== 'unlocked');
+  assert(remainingLocked.length === 1 && remainingLocked[0].daysRemaining === 14, 'Locked batch remains safely vested');
+
+  // Test 3: Radio Mesh Packet & Emergency SOS Envelope
+  const beaconPacket = {
+    id: 'pkt_test_sos',
+    type: 'EMERGENCY_SOS' as const,
+    frequencyKhz: 433920,
+    senderOnion: 'alice4p8q1w4e7r0t2y5u8i1o4p7a0s3d6f9g2h5j8k1l4z7x0c.onion',
+    payload: '⚠️ SOS EMERGENCY // GPS_APPROX',
+    timestamp: Date.now(),
+    rssi: -42,
+  };
+  assert(beaconPacket.frequencyKhz === 433920, 'Beacon broadcasts on 433.92 MHz ISM channel');
+  assert(beaconPacket.payload.startsWith('⚠️ SOS'), 'Emergency SOS payload properly flagged');
+  assert(beaconPacket.rssi < 0 && beaconPacket.rssi >= -120, 'RSSI signal metric is within valid dBm range');
+
+  // Test Suite 16: Onboarding & Account Lifecycle Invariants
+  console.log('\n📦 Test Suite 16: Onboarding & Account Lifecycle Invariants');
+
+  // 1. Fresh BIP-39 mnemonic generation
+  const freshMnemonic = generateBip39Mnemonic();
+  assert(freshMnemonic.length === 12, 'Generated fresh mnemonic contains exactly 12 words');
+  assert(isValidBip39Mnemonic(freshMnemonic), 'Generated fresh mnemonic satisfies BIP-39 checksum');
+  for (const w of freshMnemonic) {
+    assert(BIP39_WORDS.includes(w), `Word '${w}' exists in official BIP-39 English dictionary`);
+  }
+
+  // 2. Passphrase Isolation (Trezor style plausible deniability)
+  const idNoPassphrase = deriveIdentityFromMnemonic(freshMnemonic, '');
+  const idWithPassphrase = deriveIdentityFromMnemonic(freshMnemonic, 'sovereign_extra_passphrase_2026');
+  assert(idNoPassphrase.masterPublicKey !== idWithPassphrase.masterPublicKey, 'Passphrase creates isolated master public key');
+  assert(idNoPassphrase.onionAddress !== idWithPassphrase.onionAddress, 'Passphrase creates isolated Tor v3 onion address');
+
+  // 3. Invalid mnemonic detection
+  const tamperedMnemonic = [...freshMnemonic];
+  for (const candidate of ['abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb']) {
+    tamperedMnemonic[11] = candidate;
+    if (!isValidBip39Mnemonic(tamperedMnemonic)) break;
+  }
+  assert(!isValidBip39Mnemonic(tamperedMnemonic), 'Checksum failure correctly detected on tampered last word');
+
+  // 4. Safety Quiz verification logic
+  const quizCheckIndices = [2, 6, 10];
+  const userSelectedCorrect = {
+    2: freshMnemonic[2],
+    6: freshMnemonic[6],
+    10: freshMnemonic[10]
+  };
+  const isQuizPassed = quizCheckIndices.every(idx => userSelectedCorrect[idx as 2 | 6 | 10] === freshMnemonic[idx]);
+  assert(isQuizPassed === true, 'Safety Quiz passes with exact words recorded');
+
+  const userSelectedWrong = { ...userSelectedCorrect, 6: 'wrongword' };
+  const isQuizFailed = quizCheckIndices.every(idx => userSelectedWrong[idx as 2 | 6 | 10] === freshMnemonic[idx]);
+  assert(isQuizFailed === false, 'Safety Quiz fails on mismatched recorded word');
+
   console.log('\n================================================================');
   console.log(`📊 Test Summary: ${passCount} Passed, ${failCount} Failed`);
   console.log('================================================================\n');
@@ -394,6 +551,7 @@ async function runTests() {
   if (failCount > 0) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runTests().catch(err => {

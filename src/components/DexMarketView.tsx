@@ -15,6 +15,7 @@ import { DexSwapPanel, SupportedPair } from './dex/DexSwapPanel';
 import { TreasuryVestingPanel } from './dex/TreasuryVestingPanel';
 import { AuditorCouncilPanel } from './dex/AuditorCouncilPanel';
 import { StorageSubscriptionPanel, StoragePlan } from './dex/StorageSubscriptionPanel';
+import { signDexOrder, verifyDexOrderSignature, matchAndExecuteOrder, TradeExecutionReceipt } from '../utils/dexEngine';
 
 interface DexMarketViewProps {
   identity: Bip39Identity;
@@ -163,37 +164,65 @@ export const DexMarketView: React.FC<DexMarketViewProps> = ({
   const totalEmptyGb = nodes.reduce((s, n) => s + (n.isOnline ? n.emptyUnusedAllocatedGb : 0), 0);
   const estimatedDailyEarnings = totalActualForeignGb * DAILY_NEXX_RATE_PER_GB;
 
+  const [swapErrorMessage, setSwapErrorMessage] = useState<string | null>(null);
+  const [executionReceipt, setExecutionReceipt] = useState<TradeExecutionReceipt | null>(null);
+
   // Execute DEX Swap
   const handleExecuteSwap = (e: React.FormEvent) => {
     e.preventDefault();
     if (numAmount <= 0) return;
+    setSwapErrorMessage(null);
 
     const balances = { ...identity.balances };
     let unlocked = identity.unlockedNexx;
 
     if (swapType === 'buy') {
       if (selectedPair === 'NEXX/USDC') {
-        if (balances.usdc < calculatedTotal) return alert('Недостаточно USDC для покупки');
+        if (balances.usdc < calculatedTotal) {
+          setSwapErrorMessage('Недостаточно USDC для покупки.');
+          setTimeout(() => setSwapErrorMessage(null), 4000);
+          return;
+        }
         balances.usdc -= calculatedTotal;
       } else if (selectedPair === 'NEXX/TON') {
-        if (balances.ton < calculatedTotal) return alert('Недостаточно TON для покупки');
+        if (balances.ton < calculatedTotal) {
+          setSwapErrorMessage('Недостаточно TON для покупки.');
+          setTimeout(() => setSwapErrorMessage(null), 4000);
+          return;
+        }
         balances.ton -= calculatedTotal;
       }
       balances.nexx += numAmount;
       unlocked += numAmount;
     } else {
       if (unlocked < numAmount) {
-        return alert(
-          `Внимание: Вы можете продать только разблокированные токены!\n` +
-          `Доступно к продаже: ${(unlocked ?? 0).toFixed(1)} $NEXX.\n` +
+        setSwapErrorMessage(
+          `Внимание: доступно к продаже только ${(unlocked ?? 0).toFixed(1)} $NEXX. ` +
           `Заблокировано в 8-недельном вестинге: ${(identity.lockedNexx8Weeks ?? 0).toFixed(1)} $NEXX.`
         );
+        setTimeout(() => setSwapErrorMessage(null), 5000);
+        return;
       }
       unlocked -= numAmount;
       balances.nexx -= numAmount;
       if (selectedPair === 'NEXX/USDC') balances.usdc += calculatedTotal;
       if (selectedPair === 'NEXX/TON') balances.ton += calculatedTotal;
     }
+
+    // Cryptographic Ed25519 Order Signing & Depth Matching
+    const signedOrder = signDexOrder(
+      identity.seedHex || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      identity.accountAddress,
+      swapType,
+      selectedPair,
+      numAmount,
+      currentPrice
+    );
+
+    const isSigValid = verifyDexOrderSignature(signedOrder);
+    const { receipt } = matchAndExecuteOrder(signedOrder, orders);
+    setExecutionReceipt(receipt);
+    setTimeout(() => setExecutionReceipt(null), 8000);
 
     onUpdateIdentity({
       ...identity,
@@ -261,6 +290,51 @@ export const DexMarketView: React.FC<DexMarketViewProps> = ({
     );
 
     setTimeout(() => setEpochToast(null), 7000);
+  };
+
+  // Claim unlocked vesting batch into liquid balances
+  const handleClaimBatch = (batchId: string) => {
+    const batch = (identity.vestingBatches ?? []).find(b => b.id === batchId);
+    if (!batch || batch.status !== 'unlocked') return;
+
+    const claimAmount = batch.amount ?? 0;
+    const updatedBatches = (identity.vestingBatches ?? []).filter(b => b.id !== batchId);
+
+    const updatedIdentity: Bip39Identity = {
+      ...identity,
+      vestingBatches: updatedBatches,
+      unlockedNexx: Number(((identity.unlockedNexx ?? 0) + claimAmount).toFixed(2)),
+      balances: {
+        ...identity.balances,
+        nexx: Number(((identity.balances?.nexx ?? 0) + claimAmount).toFixed(2)),
+      }
+    };
+    onUpdateIdentity(updatedIdentity);
+    confetti({ particleCount: 45, spread: 55, origin: { y: 0.6 } });
+    setAuditSuccessBanner(`Вывод транша вестинга завершён! +${claimAmount.toFixed(1)} $NEXX переведено на ваш баланс.`);
+    setTimeout(() => setAuditSuccessBanner(null), 5000);
+  };
+
+  const handleClaimAllUnlocked = () => {
+    const unlockedBatches = (identity.vestingBatches ?? []).filter(b => b.status === 'unlocked');
+    if (unlockedBatches.length === 0) return;
+
+    const totalClaim = unlockedBatches.reduce((s, b) => s + (b.amount ?? 0), 0);
+    const updatedBatches = (identity.vestingBatches ?? []).filter(b => b.status !== 'unlocked');
+
+    const updatedIdentity: Bip39Identity = {
+      ...identity,
+      vestingBatches: updatedBatches,
+      unlockedNexx: Number(((identity.unlockedNexx ?? 0) + totalClaim).toFixed(2)),
+      balances: {
+        ...identity.balances,
+        nexx: Number(((identity.balances?.nexx ?? 0) + totalClaim).toFixed(2)),
+      }
+    };
+    onUpdateIdentity(updatedIdentity);
+    confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+    setAuditSuccessBanner(`Успешно выведено ${unlockedBatches.length} траншей на сумму +${totalClaim.toFixed(1)} $NEXX!`);
+    setTimeout(() => setAuditSuccessBanner(null), 5000);
   };
 
   return (
@@ -331,7 +405,13 @@ export const DexMarketView: React.FC<DexMarketViewProps> = ({
       {/* Dedicated Scrollable Content Area (flex-1 min-h-0 overflow-y-auto) */}
       <div className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-4">
         {activeDexSubTab === 'swap' && (
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto space-y-3">
+            {swapErrorMessage && (
+              <div className="p-3 rounded-xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs font-mono flex items-center gap-2 animate-in fade-in">
+                <Lock className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{swapErrorMessage}</span>
+              </div>
+            )}
             <DexSwapPanel
               identity={identity}
               selectedPair={selectedPair}
@@ -350,7 +430,11 @@ export const DexMarketView: React.FC<DexMarketViewProps> = ({
 
         {activeDexSubTab === 'vesting' && (
           <div className="max-w-3xl mx-auto">
-            <TreasuryVestingPanel identity={identity} />
+            <TreasuryVestingPanel 
+              identity={identity} 
+              onClaimBatch={handleClaimBatch}
+              onClaimAllUnlocked={handleClaimAllUnlocked}
+            />
           </div>
         )}
 

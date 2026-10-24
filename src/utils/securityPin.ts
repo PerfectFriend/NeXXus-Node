@@ -46,6 +46,19 @@ export function setupPins(primaryPin: string, panicPin: string): void {
 }
 
 /**
+ * Resets user onboarding and authentication state to allow switching accounts or logging out
+ */
+export function resetUserOnboarding(): void {
+  localStorage.removeItem(ONBOARDED_KEY);
+  localStorage.removeItem(PIN_STORAGE_KEY);
+  localStorage.removeItem(PANIC_PIN_STORAGE_KEY);
+  localStorage.removeItem(SALT_STORAGE_KEY);
+  localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+  localStorage.removeItem(COOLDOWN_UNTIL_KEY);
+  localStorage.removeItem('nexxus_identity');
+}
+
+/**
  * Calculates exponential doubling cooldown for wrong PIN attempts:
  * 1st fail: 5 seconds
  * 2nd fail: 10 seconds

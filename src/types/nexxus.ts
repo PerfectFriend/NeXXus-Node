@@ -121,6 +121,12 @@ export interface NodeRecord {
   asn?: string;
   isp?: string;
 
+  // Real-time Availability & Background Ping Telemetry
+  pingLatencyMs?: number;
+  lastPingTimestamp?: number;
+  pingStatus?: 'healthy' | 'degraded' | 'offline' | 'pinging';
+  consecutiveFailedPings?: number;
+
   externalDevices: ExternalStorageDevice[];
 }
 
