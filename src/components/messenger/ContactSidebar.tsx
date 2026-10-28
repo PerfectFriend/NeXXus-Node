@@ -16,6 +16,7 @@ export interface ContactItem {
 }
 
 export interface ContactSidebarProps {
+  className?: string;
   contacts: ContactItem[];
   selectedId: string;
   searchQuery: string;
@@ -35,6 +36,7 @@ export interface ContactSidebarProps {
  * @returns {React.ReactElement} The rendered contact sidebar.
  */
 export const ContactSidebar: React.FC<ContactSidebarProps> = ({
+  className = '',
   contacts,
   selectedId,
   searchQuery,
@@ -46,7 +48,7 @@ export const ContactSidebar: React.FC<ContactSidebarProps> = ({
   onOpenContactModal,
 }) => {
   return (
-    <div className="w-full md:w-80 lg:w-96 border-r border-slate-800 flex flex-col bg-slate-900/40 shrink-0 h-full">
+    <div className={`w-full md:w-80 lg:w-96 border-r border-slate-800 flex-col bg-slate-900/40 shrink-0 h-full ${className}`}>
       {/* Top Header & Search Bar */}
       <div className="p-3 sm:p-4 border-b border-slate-800 space-y-3 shrink-0">
         <div className="flex items-center justify-between">

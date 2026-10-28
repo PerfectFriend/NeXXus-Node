@@ -76,6 +76,10 @@ export interface NodeRecord {
   batteryLevel: number;
   isCharging: boolean;
   temperatureC: number;
+  batteryHealthPercent?: number; // e.g. 94%
+  batteryCycles?: number; // e.g. 342 cycles
+  batteryDrainRatePerHour?: number; // e.g. -3.2 (%/h) or +18.5 when charging
+  isLowPowerMode?: boolean; // triggers when battery < 20%
   wifiSsid: string;
   wifiSignalDbm: number;
 
@@ -244,6 +248,13 @@ export interface ChatMessage {
   };
   isRelayedViaPrivateServer: boolean;
   status: 'sent' | 'delivered' | 'encrypted';
+  burner?: {
+    ttlSeconds: number; // e.g. 30, 3600, 86400
+    isBurned?: boolean;
+    revealed?: boolean;
+    expiresAt?: number;
+  };
+  reaction?: string;
 }
 
 export interface OrderBookItem {

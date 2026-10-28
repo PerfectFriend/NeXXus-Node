@@ -49,7 +49,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
       />
 
       {/* Drawer content */}
-      <div className="relative w-80 max-w-full bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-5 z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+      <div className="relative w-[85vw] max-w-xs sm:w-80 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 sm:p-5 z-10 shadow-2xl animate-in slide-in-from-left duration-200 overflow-y-auto max-h-[100dvh]">
         <div className="space-y-6">
           {/* Drawer Header & Profile */}
           <div className="space-y-3 pb-4 border-b border-slate-800">

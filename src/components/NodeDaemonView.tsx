@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  BatteryCharging, Wifi, Shield, Cpu, HardDrive, Zap, CheckCircle2, 
+  BatteryCharging, Battery, BatteryWarning, Wifi, Shield, Cpu, HardDrive, Zap, CheckCircle2, 
   AlertCircle, Plus, Copy, Check, Radio, Lock, RefreshCw, Layers, 
   Activity, ArrowUpRight, Flame, Globe, Usb, Server, ShieldCheck, Play, Pause,
   Network, Smartphone
@@ -12,6 +12,8 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { OemKeepAliveModal } from './OemKeepAliveModal';
 import { TorCircuitIsolationModal } from './TorCircuitIsolationModal';
 import { LinuxDaemonDashboard } from './LinuxDaemonDashboard';
+import { TorLatencyGaugeCard } from './network/TorLatencyGaugeCard';
+import { BatteryHealthMonitorCard } from './hardware/BatteryHealthMonitorCard';
 
 interface NodeDaemonViewProps {
   currentNode: NodeRecord;
@@ -44,7 +46,24 @@ export const NodeDaemonView: React.FC<NodeDaemonViewProps> = ({
   useEffect(() => {
     if (!isLiveTelemetryActive || !currentNode.isOnline) return;
 
+    // In Low Power Mode, throttle processing loop interval to 10s to conserve battery
+    const intervalMs = (currentNode.isLowPowerMode || currentNode.batteryLevel < 20) ? 10000 : 4500;
+
     const interval = setInterval(() => {
+      // If Low Power Mode is on, pause heavy 16KB shard processing to protect phone from dying
+      if (currentNode.isLowPowerMode || currentNode.batteryLevel < 20) {
+        setRecentChunkLogs(prev => [
+          { 
+            id: `${Date.now()}-${Math.random()}`, 
+            time: new Date().toTimeString().split(' ')[0], 
+            text: `⚡ Low Power Mode: фоновая репликация 16Кб приостановлена (Заряд ${currentNode.batteryLevel}%)`, 
+            type: 'smp' 
+          },
+          ...prev.slice(0, 6)
+        ]);
+        return;
+      }
+
       const chunkNum = Math.floor(Math.random() * 8000) + 1000;
       const sectionNum = Math.floor(Math.random() * (currentNode.reservedSections16Gb || 1)) + 1;
       const types: Array<'store' | 'replicate' | 'smp'> = ['store', 'replicate', 'smp'];
@@ -77,10 +96,10 @@ export const NodeDaemonView: React.FC<NodeDaemonViewProps> = ({
         storedChunksCount: currentNode.storedChunksCount + 1,
         bandwidthSharedMb: Number((currentNode.bandwidthSharedMb + 0.016).toFixed(2)),
       });
-    }, 4500);
+    }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [isLiveTelemetryActive, currentNode.isOnline, currentNode.reservedSections16Gb]);
+  }, [isLiveTelemetryActive, currentNode.isOnline, currentNode.reservedSections16Gb, currentNode.isLowPowerMode, currentNode.batteryLevel]);
 
   // Copy onion address
   const handleCopyOnion = () => {
@@ -278,21 +297,40 @@ export const NodeDaemonView: React.FC<NodeDaemonViewProps> = ({
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {/* Battery & Charging */}
             <div 
-              onClick={() => onUpdateCurrentNode({ ...currentNode, isCharging: !currentNode.isCharging })}
-              title="Нажмите, чтобы сымитировать отключение/подключение зарядки"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border transition cursor-pointer ${
-                currentNode.isCharging 
+              onClick={() => {
+                const el = document.getElementById('battery-health-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              title="Мониторинг батареи и энергосбережения (Нажмите для перехода к деталям)"
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border transition cursor-pointer group ${
+                currentNode.isLowPowerMode || (currentNode.batteryLevel < 20)
+                  ? 'bg-amber-950/60 border-amber-500/60 text-amber-300 animate-pulse'
+                  : currentNode.isCharging 
                   ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' 
-                  : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-200'
               }`}
             >
-              <BatteryCharging className="w-4 h-4 text-emerald-400 shrink-0" />
+              {currentNode.isCharging ? (
+                <BatteryCharging className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (currentNode.batteryLevel < 20 || currentNode.isLowPowerMode) ? (
+                <BatteryWarning className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
+              ) : (
+                <Battery className="w-4 h-4 text-cyan-400 shrink-0" />
+              )}
               <div>
-                <div className="font-bold flex items-center gap-1">
+                <div className="font-bold flex items-center gap-1 font-mono">
                   <span>{currentNode.batteryLevel}%</span>
-                  <span className="text-[10px]">{currentNode.isCharging ? '⚡ На зарядке' : '⚠️ От батареи'}</span>
+                  <span className="text-[10px]">
+                    {currentNode.isLowPowerMode || currentNode.batteryLevel < 20 
+                      ? '⚡ Low Power' 
+                      : currentNode.isCharging 
+                      ? '⚡ На зарядке' 
+                      : '⚠️ От батареи'}
+                  </span>
                 </div>
-                <div className="text-[10px] text-slate-400">USB-C Power 24/7</div>
+                <div className="text-[10px] text-slate-400">
+                  {currentNode.isCharging ? 'USB-C Power 24/7' : 'Разряд: -3.2%/ч'}
+                </div>
               </div>
             </div>
 
@@ -314,6 +352,28 @@ export const NodeDaemonView: React.FC<NodeDaemonViewProps> = ({
               </div>
             </div>
 
+            {/* Real-time Tor Onion Network Latency Mini-Badge */}
+            <div 
+              onClick={() => {
+                const el = document.getElementById('tor-latency-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              title="Задержка сети Tor Onion v3 (Нажмите для перехода к спидометр-графику)"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-purple-500/40 text-slate-200 transition cursor-pointer group"
+            >
+              <div className="relative">
+                <Globe className="w-4 h-4 text-purple-400 group-hover:scale-110 transition shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 animate-ping" />
+              </div>
+              <div>
+                <div className="font-bold font-mono flex items-center gap-1">
+                  <span>{currentNode.pingLatencyMs || 54} ms</span>
+                  <span className="text-[10px] text-purple-300 font-normal">Tor v3</span>
+                </div>
+                <div className="text-[10px] text-slate-400">Пинг сети</div>
+              </div>
+            </div>
+
             {/* Screen Wake Lock */}
             <button
               id="btn-toggle-wakelock"
@@ -329,6 +389,14 @@ export const NodeDaemonView: React.FC<NodeDaemonViewProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Real-time Battery Health & Low Power Mode Monitoring Component */}
+      <div id="battery-health-section">
+        <BatteryHealthMonitorCard
+          currentNode={currentNode}
+          onUpdateCurrentNode={onUpdateCurrentNode}
+        />
       </div>
 
       {/* Grid: Storage Slicer (16GB blocks) & Reputation Streak */}
@@ -649,6 +717,14 @@ export const NodeDaemonView: React.FC<NodeDaemonViewProps> = ({
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
               </div>
             </div>
+          </div>
+
+          {/* Real-time Network Latency Indicator with Gauge Chart */}
+          <div id="tor-latency-section">
+            <TorLatencyGaugeCard
+              currentNode={currentNode}
+              onUpdateCurrentNode={onUpdateCurrentNode}
+            />
           </div>
         </div>
 

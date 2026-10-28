@@ -99,7 +99,11 @@ function AppRootContent(): React.ReactElement {
   const {
     messages,
     sendMessage,
+    deleteMessage,
+    forwardMessage,
     togglePrivateServer,
+    toggleReaction,
+    revealBurnerNote,
   } = useMessenger();
 
   const handleOpenDrawerTab = (
@@ -175,23 +179,27 @@ function AppRootContent(): React.ReactElement {
           {/* A. Messenger View */}
           {activeTab === 'messenger' && (
             <MessengerView
-          messages={messages}
-          onSendMessage={sendMessage}
-          currentNode={currentNode}
-          onTogglePrivateServer={togglePrivateServer}
-          identity={identity}
-          files={files}
-          onAddFile={addFile}
-          onDeleteFile={deleteFile}
-          nodes={nodes}
-          personalSectionsCount={personalSections}
-          personalVaultQuotaGb={personalVaultQuotaGb}
-          onOpenDrawerTab={handleOpenDrawerTab}
-          onQuickLock={quickLock}
-          onSwitchAccount={switchAccount}
-          isDecoyMode={isDecoyMode}
-        />
-      )}
+              messages={messages}
+              onSendMessage={sendMessage}
+              onDeleteMessage={deleteMessage}
+              onForwardMessage={forwardMessage}
+              onToggleReaction={toggleReaction}
+              onRevealBurnerNote={revealBurnerNote}
+              currentNode={currentNode}
+              onTogglePrivateServer={togglePrivateServer}
+              identity={identity}
+              files={files}
+              onAddFile={addFile}
+              onDeleteFile={deleteFile}
+              nodes={nodes}
+              personalSectionsCount={personalSections}
+              personalVaultQuotaGb={personalVaultQuotaGb}
+              onOpenDrawerTab={handleOpenDrawerTab}
+              onQuickLock={quickLock}
+              onSwitchAccount={switchAccount}
+              isDecoyMode={isDecoyMode}
+            />
+          )}
 
       {/* B. Storage Sections Dashboard */}
       {activeTab === 'sections' && (
@@ -368,20 +376,23 @@ function AppRootContent(): React.ReactElement {
       {/* G. Node Daemon View */}
       {activeTab === 'node' && (
         <div className="flex-1 flex flex-col bg-[#0b0f17] overflow-hidden">
-          <div className="bg-slate-900/90 border-b border-slate-800 px-4 sm:px-6 py-3.5 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3">
+          <div className="bg-slate-900/90 border-b border-slate-800 px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('messenger')}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1 text-xs font-semibold shrink-0 cursor-pointer"
               >
-                <ArrowLeft className="w-4 h-4" /> Назад в Чат
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Назад в Чат</span>
+                <span className="sm:hidden">Чат</span>
               </button>
-              <div>
-                <h1 className="text-base font-bold text-white font-mono flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-emerald-400" /> Демон Ноды: {currentNode.name}
+              <div className="min-w-0">
+                <h1 className="text-xs sm:text-base font-bold text-white font-mono flex items-center gap-1.5 truncate">
+                  <Cpu className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="truncate">Демон Ноды: {currentNode.name}</span>
                 </h1>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[10px] text-slate-400 hidden sm:block truncate">
                   Статус фонового сервиса, Tor Circuit, температура и системные разрешения
                 </p>
               </div>

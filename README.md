@@ -1,155 +1,140 @@
 <p align="center">
-  <img src="assets/images/banner-top.jpg" alt="NeXXUs Sovereign Crypto-Cloud Hosting — Cyberpunk Gaudí Van Gogh Banner" width="100%" style="border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);" />
+  <img src="assets/images/banner-top.jpg" alt="NeXXUs Sovereign Crypto-Cloud Hosting — Cyberpunk Banner" width="100%" style="border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);" />
 </p>
 
-# 🌌 NeXXUs — Децентрализованное Криптооблако и Суверенная P2P Сеть Хранилищ
+# 🌌 NeXXUs — Decentralized Crypto-Cloud & Sovereign P2P Storage Mesh
 
-> **Суверенная Peer-to-Peer платформа для надёжного хранения конфиденциальных данных, секретов, ключей и приватных архивов, абсолютно независимая от облачных корпораций, датацентров и цензуры провайдеров.**
+> **Sovereign, trustless Peer-to-Peer platform for ultra-secure storage of confidential data, keys, seed phrases, and private archives — completely independent of cloud monopolies, centralized data centers, and corporate surveillance.**
+
+<p align="center">
+  <b>🌐 Language / Язык / Idioma:</b><br>
+  <b>English (EN)</b> •
+  <a href="README.ru.md"><b>Русский (RU)</b></a> •
+  <a href="README.es.md"><b>Español (ES)</b></a>
+</p>
+
+---
 
 [![Wire Protocol](https://img.shields.io/badge/Wire_Protocol-v2.0.0_Big--Endian-06b6d4?style=for-the-badge&logo=wireguard)](PROTOCOL_WIRE_SPEC.md)
 [![Zero-Knowledge](https://img.shields.io/badge/Security-Zero--Knowledge_ChaCha20--Poly1305-10b981?style=for-the-badge&logo=shield)](PROTOCOL_WIRE_SPEC.md)
 [![Erasure Coding](https://img.shields.io/badge/Fault_Tolerance-Reed--Solomon_(4+2)_GF(2^8)-f59e0b?style=for-the-badge&logo=speedtest)](test/protocol.test.ts)
 [![Golden Vectors](https://img.shields.io/badge/Golden_Vectors-113%2F113_PASS-8b5cf6?style=for-the-badge&logo=checkmarx)](nexxus-vectors/)
 [![Tor Onion](https://img.shields.io/badge/Transport-Tor_v3_Onion_P2P-ec4899?style=for-the-badge&logo=torproject)](PROTOCOL_WIRE_SPEC.md)
-[![Ubuntu Installer](https://img.shields.io/badge/Linux_Deploy-Ubuntu_One--Liner-E95420?style=for-the-badge&logo=ubuntu)](install.sh)
+[![Linux Installer](https://img.shields.io/badge/Linux_Deploy-Ubuntu_One--Liner-E95420?style=for-the-badge&logo=ubuntu)](install.sh)
 [![Windows Installer](https://img.shields.io/badge/Windows_Deploy-PowerShell_One--Liner-0078D6?style=for-the-badge&logo=windows)](install.ps1)
 [![Android Installer](https://img.shields.io/badge/Android_Deploy-Termux_One--Liner-3DDC84?style=for-the-badge&logo=android)](scripts/install-android-termux.sh)
 
 ---
 
-## 📑 Содержание
+## 📑 Table of Contents
 
-1. [Манифест и Ключевые Принципы](#-манифест-проекта)
-2. [Архитектура и Математика Надежности](#-архитектура-и-математика-надежности)
-3. [⚡ Быстрая Установка на Ubuntu прямо с GitHub](#-быстрая-установка-на-ubuntu-прямо-с-github)
-4. [🪟 Установка на Windows (PowerShell One-Liner)](#-установка-на-windows-powershell-one-liner)
-5. [📱 Установка на Android (Termux One-Liner)](#-установка-на-android-termux-one-liner)
-6. [🛠️ Полный Справочник Команд CLI (`nexxusd`)](#️-полный-справочник-команд-cli-nexxusd)
-7. [⚙️ Конфигурация и Параметры Окружения](#️-конфигурация-и-параметры-окружения)
-8. [🌐 Руководство: Объединение Нескольких Ubuntu Хостов в Меш-Кластер](#-руководство-объединение-нескольких-ubuntu-хостов-в-меш-кластер)
-9. [🗺️ Дорожная карта: Нативные версии для Windows и Android](#️-дорожная-карта-нативные-версии-для-windows-и-android)
-10. [🤖 GitHub Actions и Автоматические Релизы](#-github-actions-и-автоматические-релизы)
-11. [❓ FAQ и Решение Проблем](#-faq-и-решение-проблем)
-
----
-
-## ⚡ Манифест Проекта
-
-Современные централизованные облачные сервисы (AWS S3, Google Cloud, Cloudflare, Dropbox, 1Password) создают опасную зависимость:
-* **Единая точка отказа (SPOF)**: блокировка аккаунта, санкции, отзыв домена или авария в ЦОД лишают вас доступа ко всем секретам.
-* **Иллюзия приватности**: даже при наличии шифрования метаданные, IP-адреса, размеры файлов и частота обращений собираются и анализируются.
-* **Уязвимость перед законами чужих юрисдикций**: судебные предписания и скрытые бэкдоры.
-
-**NeXXUs заменяет серверы корпораций чистой математикой и P2P-сетью.** Ваши файлы не хранятся целиком ни на одном сервере в мире. Они квантуются на микро-блоки ровно по 16 KB, шифруются локально шифром **ChaCha20-Poly1305**, кодируются помехоустойчивыми матрицами **Reed-Solomon (4+2)** и рассеиваются по глобальному рою независимых хостинг-узлов через анонимную сеть **Tor v3**.
+1. [Manifesto & Core Principles](#-manifesto)
+2. [Architecture & Reliability Mathematics](#-architecture--reliability-mathematics)
+3. [⚡ Quick Install on Linux (Ubuntu/Debian) via Single Command](#-quick-install-on-linux-ubuntudebian-via-single-command)
+4. [🪟 Quick Install on Windows via Single Command](#-quick-install-on-windows-via-single-command)
+5. [📱 Quick Install on Android (Termux)](#-quick-install-on-android-termux)
+6. [📦 Pre-built Installation Packages (.deb, .tar.gz, .zip)](#-pre-built-installation-packages)
+7. [🛠️ Complete CLI Command Reference (`nexxusd`)](#️-complete-cli-command-reference-nexxusd)
+8. [⚙️ Configuration & Environment Variables](#️-configuration--environment-variables)
+9. [🌐 Multi-Host Mesh Cluster Guide](#-multi-host-mesh-cluster-guide)
+10. [📈 3-Year Market Economics & DePIN Model (2026–2029)](#-3-year-market-economics--depin-model-20262029)
+11. [❓ FAQ & Troubleshooting](#-faq--troubleshooting)
 
 ---
 
-## 🏛️ Архитектура и Математика Надежности
+## ⚡ Manifesto
+
+Centralized cloud vendors (AWS S3, Google Cloud, Microsoft Azure, Dropbox) introduce critical systemic risks:
+* **Single Point of Failure (SPOF)**: data center outages, policy changes, sudden account bans, or geopolitical sanctions instantly lock you out of your secrets.
+* **The Privacy Illusion**: IP addresses, timestamps, file sizes, and query patterns are logged, indexed, and analyzed by surveillance algorithms.
+* **Jurisdictional Vulnerability**: secret search warrants, subpoenas, and corporate backdoors bypass traditional security promises.
+
+**NeXXUs replaces corporate servers with pure mathematics and a decentralized swarm.** Your files are never stored in their entirety on any single computer on Earth. They are sliced into micro-blocks of exactly 16 KB, encrypted locally with **ChaCha20-Poly1305 (Zero-Knowledge)**, encoded using fault-tolerant **Reed-Solomon (4+2)** Galois Field matrices, and scattered across a global swarm of independent nodes via the **Tor v3 Onion** anonymous network.
+
+---
+
+## 🏛️ Architecture & Reliability Mathematics
 
 ```
    ┌────────────────────────────────────────────────────────────────────────┐
-   │                         ВАШЕ УСТРОЙСТВО (КЛИЕНТ)                       │
-   │  1. Вход: Мастер-мнемоника BIP-39 (12/24 слова)                        │
-   │  2. Квантование данных на микро-чанки ровно по 16 KB (16,384 байт)     │
-   │  3. Клиентское шифрование: ChaCha20-Poly1305 (AEAD, 256-бит, RFC 8439) │
-   │  4. Кодирование стирания: Reed-Solomon (4+2) над полем Галуа GF(2^8)   │
+   │                         YOUR DEVICE (CLIENT)                           │
+   │  1. Authentication: Master BIP-39 Mnemonic (12/24 words)               │
+   │  2. Quantization: Micro-chunks of strictly 16 KB (16,384 bytes)        │
+   │  3. Local Encryption: ChaCha20-Poly1305 (AEAD, 256-bit, RFC 8439)      │
+   │  4. Erasure Coding: Reed-Solomon (4+2) over Galois Field GF(2^8)       │
    └───────────────────────────────────┬────────────────────────────────────┘
                                        │
-                Шарды 1-6 (4 данных + 2 проверочных по 4 KB каждый)
+               Shards 1-6 (4 data + 2 parity of 4 KB each)
                                        │
                                        ▼
    ┌────────────────────────────────────────────────────────────────────────┐
-   │                       ДЕЦЕНТРАЛИЗОВАННЫЙ РОЙ P2P                       │
-   │  • Анонимный транспорт: Tor v3 Onion (62-символьные адреса)            │
-   │  • Kademlia 256-bit DHT с маршрутизацией по XOR-расстоянию             │
-   │  • Anti-Outsource: верификация локального отклика диска (I/O < 50 мс)  │
-   │  • Защита от монополий: ASN Herfindahl-Hirschman Index (HHI ≤ 2500)    │
-   │  • Автономное самоисцеление (Self-Healing) при потере любых 2 нод      │
+   │                       DECENTRALIZED P2P SWARM                          │
+   │  • Anonymous Transport: Tor v3 Onion (62-char addresses)               │
+   │  • Kademlia 256-bit DHT with XOR-distance routing                      │
+   │  • Anti-Outsource: NVMe disk I/O verification latency (< 50 ms)        │
+   │  • Anti-Monopoly: ASN Herfindahl-Hirschman Index (HHI ≤ 2500)          │
+   │  • Autonomous Self-Healing upon loss of any 2 nodes                    │
    └───────────────────────────────────┬────────────────────────────────────┘
                                        │
         ┌──────────────┬───────────────┼───────────────┬──────────────┐
         ▼              ▼               ▼               ▼              ▼
-   [Нода #1: 4KB] [Нода #2: 4KB] [Нода #3: 4KB] [Нода #4: 4KB] [Нода #5: 4KB]
-     (Германия)     (Бразилия)      (Исландия)       (Япония)       (Канада)
+   [Node #1: 4KB] [Node #2: 4KB] [Node #3: 4KB] [Node #4: 4KB] [Node #5: 4KB]
+     (Germany)       (Brazil)       (Iceland)        (Japan)        (Canada)
 ```
 
-### 1. Квантование и Избыточное Кодирование Reed-Solomon (4+2)
-* **Размер блока**: ровно `16,384 байта` (16 KB).
-* **Матрица Вандермонда над $GF(2^8)$** с примитивным полиномом `0x11D` ($x^8 + x^4 + x^3 + x^2 + 1$).
-* Каждый чанк расщепляется на **4 информационных шарда** и **2 проверочных шарда** (по 4,096 байт каждый).
-* **Математическая гарантия**: для 100% восстановления исходного файла достаточно любых 4 из 6 шардов. Даже при физическом уничтожении двух серверов данные восстанавливаются bit-for-bit.
+### 1. Quantization & Reed-Solomon (4+2) Erasure Coding
+* **Chunk size**: strictly `16,384 bytes` (16 KB).
+* **Vandermonde Matrix over $GF(2^8)$** with primitive polynomial `0x11D` ($x^8 + x^4 + x^3 + x^2 + 1$).
+* Each chunk splits into **4 data shards** and **2 parity shards** (4,096 bytes each).
+* **Mathematical guarantee**: any 4 of the 6 shards are sufficient to reconstruct the original block bit-for-bit. Even if two host servers are simultaneously destroyed, your data is 100% recovered.
 
-### 2. Клиентское Шифрование Zero-Knowledge (ChaCha20-Poly1305)
-* Все данные шифруются **на клиенте до отправки в сеть**.
-* Симметричный шифр **ChaCha20** с 256-битным ключом и аутентификацией сообщений **Poly1305** (RFC 8439).
-* Узлы хранения видят только случайный шум. Оператор ноды не может узнать ни тип, ни имя, ни содержимое файла.
+### 2. Client-Side Zero-Knowledge Encryption (ChaCha20-Poly1305)
+* Data is encrypted **on your local device prior to network dispatch**.
+* Symmetric cipher **ChaCha20** with 256-bit key and **Poly1305** message authentication code (RFC 8439).
+* Storage nodes see only cryptographic high-entropy white noise. Node operators cannot determine file names, types, or contents.
 
-### 3. Proof-of-Retrievability (PoR) Аудит
-* Рой непрерывно валидирует узлы случайными криптографическими запросами: $s \in \{0, 1\}^{256}$.
-* Дедлайн вычисления ответа: **строго 3,000 мс** (фактическое время на NVMe: 1–4 мс).
-* Попытка узла смухлевать или перенаправить трафик в медленное облако (AWS S3) приводит к превышению лимита задержки и немедленной дисквалификации с изъятием залога.
-
-### 4. Экономическая Модель Защиты от Атак (Anti-Loop Invariant)
-В протоколе заложена строгая математическая защита от Sybil-атак и накрутки наград за хранение собственных данных («атака закольцовки»):
-$$\text{Fee}_{\text{writer}} (1.30) > \text{Reward}_{\text{storer}} (1.25)$$
-$$\text{Net Yield} = \text{Reward} - \text{Fee} = 1.25 - 1.30 = -0.05 \text{ NEXX (строго отрицательно)}$$
-Каждая попытка бесконечно фармить награды, сохраняя данные на собственных нодах, сжигает капитал атакующего.
+### 3. Proof-of-Retrievability (PoR) Continuous Auditing
+* The swarm continuously challenges storage nodes with random cryptographic nonces: $s \in \{0, 1\}^{256}$.
+* Strict response deadline: **3,000 ms** (actual NVMe local disk response: 1–4 ms).
+* Outsource cheat attempts (e.g. proxying to slow cloud storage like AWS S3 Glacier) breach latency limits, resulting in instant node slashing and bond forfeiture.
 
 ---
 
-## ⚡ Быстрая Установка на Ubuntu прямо с GitHub
+## ⚡ Quick Install on Linux (Ubuntu/Debian) via Single Command
 
-Инсталляционный скрипт спроектирован так, чтобы после пуша проекта на GitHub вы могли развернуть ноду на любом количестве серверов Ubuntu (20.04, 22.04, 24.04 LTS) **одной консольной командой**.
+Deploy a sovereign hosting node on Ubuntu (20.04, 22.04, 24.04 LTS) or Debian with **one single command**:
 
-### 🚀 Способ 1: Установка в одну строку через `curl | bash` (Рекомендуемый)
-
-Выполните на сервере Ubuntu:
+### 🚀 Method 1: Remote One-Liner via `curl | bash` (Recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PerfectFriend/NeXXus-Node/main/install.sh | bash
 ```
 
-> 💡 **Что скрипт делает автоматически «из коробки»:**
-> 1. Проверяет права `sudo` и аппаратные характеристики сервера (CPU, RAM, диск).
-> 2. При отсутствии Node.js автоматически устанавливает последнюю LTS-версию (v20) из официального репозитория NodeSource.
-> 3. Клонирует репозиторий в `/opt/nexxus` или обновляет его.
-> 4. Собирает оптимизированный автономный бандл демона `dist/nexxusd.cjs`.
-> 5. Устанавливает глобальный бинарник в `/usr/local/bin/nexxusd`.
-> 6. Создает структуру каталогов `/var/lib/nexxus` (`chunks/`, `meta/`, `logs/`).
-> 7. Применяет оптимизации ядра Linux через `/etc/sysctl.d/99-nexxus.conf` для максимального IOPS на NVMe-дисках.
-> 8. Генерирует суверенный криптографический паспорт узла (`node_identity.json`) с парой ключей Ed25519 и адресом **Tor Onion v3**.
-> 9. Устанавливает и запускает фоновую системную службу **systemd** (`nexxus-node.service`) с автозапуском при перезагрузке.
+> 💡 **What the installer automates:**
+> 1. Validates `sudo` privileges and system resources (CPU, RAM, disk).
+> 2. Automatically installs Node.js LTS (v20) via NodeSource if missing.
+> 3. Clones or updates the repository to `/opt/nexxus`.
+> 4. Builds the optimized standalone daemon bundle `dist/nexxusd.cjs`.
+> 5. Configures the global binary command `/usr/local/bin/nexxusd`.
+> 6. Creates the storage directory tree `/var/lib/nexxus` (`chunks/`, `meta/`, `logs/`).
+> 7. Applies Linux kernel NVMe I/O tuning via `/etc/sysctl.d/99-nexxus.conf`.
+> 8. Generates the sovereign cryptographic identity (`node_identity.json`) with Ed25519 keys and **Tor Onion v3** address.
+> 9. Registers and starts the background **systemd** service (`nexxus-node.service`) with auto-start on boot.
 
-#### Установка с кастомными параметрами:
-Вы можете сразу передать размер выделяемого диска, порт и адрес начального пира:
+#### Install with Custom Parameters:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PerfectFriend/NeXXus-Node/main/install.sh | bash -s -- --storage-gb=500 --port=3999 --peers=192.168.1.10:3999
 ```
 
----
-
-### 📦 Способ 2: Установка через Debian-пакет (.deb)
-
-Если вы предпочитаете стандартный пакетный менеджер Ubuntu:
-
+### 📦 Method 2: Native Debian Package (.deb)
 ```bash
-# 1. Скачайте свежий .deb пакет из релизов
 wget https://raw.githubusercontent.com/PerfectFriend/NeXXus-Node/main/public/packages/nexxus-node_latest_amd64.deb
-
-# 2. Установите пакет в систему
 sudo dpkg -i nexxus-node_latest_amd64.deb || sudo apt-get install -f -y
-
-# 3. Инициализируйте паспорт ноды
 nexxusd init
-
-# 4. Включите и запустите службу
 sudo systemctl enable --now nexxus-node
 ```
 
----
-
-### 🔨 Способ 3: Установка из клонированного репозитория
-
+### 🔨 Method 3: Local Git Repository Clone
 ```bash
 git clone https://github.com/PerfectFriend/NeXXus-Node.git
 cd NeXXus-Node
@@ -158,256 +143,151 @@ sudo bash install.sh
 
 ---
 
-### 🚦 Управление системной службой на Ubuntu
+## 🪟 Quick Install on Windows via Single Command
 
-```bash
-# Проверить статус демона
-sudo systemctl status nexxus-node
+For Windows 10/11 machines, an automated PowerShell installer and batch control scripts are provided.
 
-# Просмотр логов работы в реальном времени
-sudo journalctl -u nexxus-node -f
+### 🚀 Method 1: PowerShell One-Liner (Recommended)
 
-# Перезапуск службы (например, после смены конфига)
-sudo systemctl restart nexxus-node
-
-# Остановка службы
-sudo systemctl stop nexxus-node
-```
-
----
-
-## 🪟 Установка на Windows (PowerShell One-Liner)
-
-Для машин под управлением Windows 10/11 доступен автоматический PowerShell-инсталлятор.
-
-### Быстрая установка в 1 команду:
-Откройте **PowerShell от имени Администратора** и выполните:
+Open **PowerShell as Administrator** and run:
 
 ```powershell
 irm https://raw.githubusercontent.com/PerfectFriend/NeXXus-Node/main/install.ps1 | iex
 ```
 
-### Что делает скрипт:
-1. Проверяет наличие Node.js (при отсутствии ставит тихий пакет Node.js LTS через `winget` или официальный MSI).
-2. Загружает ядро демона в `$env:ProgramFiles\NeXXUs`.
-3. Создает директорию хранилища `$env:ProgramData\NeXXUs`.
-4. Регистрирует команды `nexxusd.cmd` и `nexxusd.ps1` и добавляет их в системную переменную `$env:PATH`.
-5. Инициализирует паспорт ноды и Tor v3 Onion адрес.
+### 🖱️ Method 2: Double-Click `install.bat` (From Local Repo or ZIP)
+If you downloaded the Windows ZIP release or cloned the repository:
+1. Right-click `install.bat` and select **"Run as administrator"**.
+2. The batch script bypasses PowerShell execution policies, installs Node.js LTS silently via `winget` (if missing), deploys the daemon, and registers the node.
 
-### Проверка работы в Windows:
-```powershell
-# Проверка паспорта и готовности
-nexxusd status
-
-# Запуск демона в терминале
-nexxusd serve
-
-# Быстрый бенчмарк PoR
-nexxusd test-por
-```
+### 🎮 Windows Management Scripts:
+* `nexxus-start.bat`: Starts the P2P daemon interactively or in the background.
+* `nexxus-stop.bat`: Gracefully stops all active NeXXUs daemon processes.
+* `nexxusd status`: Inspects local node status, allocated NVMe storage, and Tor identity.
+* `nexxusd test-por`: Runs a local Proof-of-Retrievability challenge benchmark.
 
 ---
 
-## 📱 Установка на Android (Termux One-Liner)
+## 📱 Quick Install on Android (Termux)
 
-Превратите любой Android-смартфон с быстрым накопителем UFS в полноценную P2P-ноду криптооблака.
+Turn any Android smartphone with fast UFS internal storage into a 24/7 sovereign P2P hosting node.
 
-### Установка в Termux в 1 команду:
-Откройте приложение **Termux** на телефоне и вставьте:
+Open the **Termux** application on your device and run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PerfectFriend/NeXXus-Node/main/scripts/install-android-termux.sh | bash
 ```
 
-### Особенности работы на Android:
-- **Wakelock**: скрипт автоматически вызывает `termux-wake-lock`, предотвращая засыпание процессора при блокировке экрана.
-- **Хранилище**: по умолчанию выделяется 32 ГБ в `~/.nexxus-storage`.
-- **Автозапуск**: при наличии пакета `Termux:Boot` демон автоматически поднимается при перезагрузке смартфона.
+* **Wakelock**: Automatically activates `termux-wake-lock` to keep the CPU awake with screen locked.
+* **Auto-Boot**: Fully integrates with `Termux:Boot` to automatically start the daemon when phone reboots.
 
 ---
 
-## 🛠️ Полный Справочник Команд CLI (`nexxusd`)
+## 📦 Pre-built Installation Packages
 
-Утилита командной строки `nexxusd` предоставляет полный контроль над нодой:
+Ready-to-install distributions are available in `public/packages/`:
 
-| Команда | Описание | Пример вызова |
+| Platform | Format | Direct Download Link | Purpose |
+|---|---|---|---|
+| **Ubuntu / Debian** | `.deb` | [`nexxus-node_latest_amd64.deb`](public/packages/nexxus-node_latest_amd64.deb) | Native Debian package for `dpkg -i` |
+| **Universal Linux** | `.tar.gz` | [`nexxus-node_latest_linux_x86_64.tar.gz`](public/packages/nexxus-node_latest_linux_x86_64.tar.gz) | Standalone tarball for Arch, Fedora, Alpine, etc. |
+| **Windows 10/11** | `.zip` | [`nexxus-node_latest_windows_x64.zip`](public/packages/nexxus-node_latest_windows_x64.zip) | Portable bundle with `install.bat`, start/stop scripts |
+
+---
+
+## 🛠️ Complete CLI Command Reference (`nexxusd`)
+
+| Command | Description | Example |
 |---|---|---|
-| `nexxusd serve` | Запуск P2P демона хранилища в фоновом/интерактивном режиме | `nexxusd serve --port=3999` |
-| `nexxusd init` | Генерация суверенной крипто-идентичности, ключей и Tor Onion v3 | `nexxusd init` или с восстановлением: `nexxusd init --mnemonic="12 слов..."` |
-| `nexxusd id` | Вывод паспорта ноды, открытого ключа Ed25519 и адреса Onion v3 | `nexxusd id` или `nexxusd id --json` |
-| `nexxusd status` | Просмотр статуса ноды, занятого объема NVMe, пула и ранга сейфа | `nexxusd status` |
-| `nexxusd peers` | Вывод списка всех подключенных активных меш-узлов и задержек RTT | `nexxusd peers` |
-| `nexxusd peer add <IP:PORT>` | Подключение к удаленному узлу и взаимный обмен паспортами | `nexxusd peer add 192.168.1.50:3999` |
-| `nexxusd test-por` | Запуск локального бенчмарка Proof-of-Retrievability (<3000 мс) | `nexxusd test-por` |
-| `nexxusd test-interhost <IP:PORT>` | Полный 6-этапный P2P аудит сетевого взаимодействия с удаленным узлом | `nexxusd test-interhost 192.168.1.50:3999` |
-| `nexxusd upload <file>` | Загрузка локального файла: нарезка на 16KB, RS (4+2) и рассеивание | `nexxusd upload /path/to/archive.tar.gz` |
-| `nexxusd download <hash> <out>` | Сбор шардов из сети, восстановление через RS и дешифрование | `nexxusd download <sha256> /tmp/restored.bin` |
-| `nexxusd logs [-n N]` | Просмотр структурированных записей операционного лога | `nexxusd logs -n 50` |
-| `nexxusd benchmark` | Тестирование пропускной способности NVMe и скорости Merkle Tree | `nexxusd benchmark` |
+| `nexxusd serve` | Start P2P storage daemon in service/interactive mode | `nexxusd serve --port=3999` |
+| `nexxusd init` | Generate sovereign cryptographic identity and Tor Onion v3 | `nexxusd init` or recover: `nexxusd init --mnemonic="..."` |
+| `nexxusd id` | Display node identity, Ed25519 public key, and Onion v3 address | `nexxusd id` |
+| `nexxusd status` | Inspect storage status, NVMe allocation, and vault score | `nexxusd status` |
+| `nexxusd peers` | List all connected active mesh peers and RTT latencies | `nexxusd peers` |
+| `nexxusd peer add <IP:PORT>` | Connect to a remote peer and perform mutual handshake | `nexxusd peer add 192.168.1.50:3999` |
+| `nexxusd test-por` | Run local Proof-of-Retrievability audit benchmark (<3000 ms) | `nexxusd test-por` |
+| `nexxusd test-interhost <IP:PORT>` | Run full 6-phase P2P inter-host diagnostic validation | `nexxusd test-interhost 192.168.1.50:3999` |
+| `nexxusd upload <file>` | Slices local file into 16KB chunks, applies RS(4+2), and disperses | `nexxusd upload /path/to/archive.tar.gz` |
+| `nexxusd download <hash> <out>` | Fetches shards from swarm, recovers via RS, and decrypts | `nexxusd download <sha256> /tmp/restored.bin` |
+| `nexxusd logs [-n N]` | View structured operation log entries | `nexxusd logs -n 50` |
+| `nexxusd benchmark` | Test local NVMe read/write speed and Merkle tree calculation | `nexxusd benchmark` |
 
 ---
 
-## ⚙️ Конфигурация и Параметры Окружения
+## ⚙️ Configuration & Environment Variables
 
-Основной файл конфигурации на Ubuntu располагается по пути:
-`/etc/nexxus/nexxus.conf`
+Main configuration file: `/etc/nexxus/nexxus.conf` (or `nexxus.conf` in the program folder):
 
 ```ini
-# Сетевой интерфейс и порт
+# Network interface and listening port
 NEXXUS_HOST=0.0.0.0
 NEXXUS_PORT=3999
 
-# Каталог данных и размер выделенного пула NVMe (в ГБ)
+# Data directory and allocated NVMe storage pool (in GB)
 NEXXUS_DATA_DIR=/var/lib/nexxus
 NEXXUS_STORAGE_GB=384
 
-# Параметры надежности (Reed-Solomon)
+# Reed-Solomon Fault-Tolerance Parameters
 NEXXUS_REED_SOLOMON_DATA=4
 NEXXUS_REED_SOLOMON_PARITY=2
 NEXXUS_CHUNK_SIZE_KB=16
 
-# Начальные узлы для присоединения к сети (через запятую)
+# Bootstrap seed nodes (comma separated)
 NEXXUS_BOOTSTRAP_PEERS=192.168.1.10:3999,192.168.1.20:3999
 
-# Уровень логирования (debug, info, warn, error)
+# Logging verbosity (debug, info, warn, error)
 NEXXUS_LOG_LEVEL=info
 ```
 
-Любой параметр можно переопределить через флаги CLI (например, `--port=4000`, `--storage-gb=500`).
+---
+
+## 🌐 Multi-Host Mesh Cluster Guide
+
+1. Install NeXXUs on **Host 1** (`192.168.1.10`) and **Host 2** (`192.168.1.20`).
+2. On **Host 1**, peer with **Host 2**:
+   ```bash
+   nexxusd peer add 192.168.1.20:3999
+   ```
+3. Run the automated 6-in-1 inter-host validation test:
+   ```bash
+   nexxusd test-interhost 192.168.1.20:3999
+   ```
+4. Upload confidential files to the mesh:
+   ```bash
+   nexxusd upload /tmp/secret_keys.tar.gz
+   ```
 
 ---
 
-## 🌐 Руководство: Объединение Нескольких Ubuntu Хостов в Меш-Кластер
+## 📈 3-Year Market Economics & DePIN Model (2026–2029)
 
-Предположим, у вас есть 2 или 3 сервера Ubuntu (например, мини-ПК Beelink SER9, домашний сервер и VPS):
+Full market forecast and tokenomics whitepaper: 👉 [docs/MARKET_FORECAST_AND_TOKENOMICS_3Y.md](docs/MARKET_FORECAST_AND_TOKENOMICS_3Y.md)
 
-### Шаг 1: Установка на всех машинах
-Выполните одну команду на каждом сервере:
-```bash
-curl -fsSL https://raw.githubusercontent.com/PerfectFriend/NeXXus-Node/main/install.sh | bash
-```
-
-### Шаг 2: Проверка паспортов узлов
-На **Хосте 1** (IP: `192.168.1.10`):
-```bash
-nexxusd id
-# Получите Node ID и Tor Onion v3 адрес
-```
-
-На **Хосте 2** (IP: `192.168.1.20`):
-```bash
-nexxusd id
-```
-
-### Шаг 3: Соединение узлов в сеть
-На **Хосте 1** подключитесь к **Хосту 2**:
-```bash
-nexxusd peer add 192.168.1.20:3999
-```
-*Узлы обменяются криптографическими фреймами `NODE_ANNOUNCE`, добавят друг друга в таблицу маршрутизации Kademlia DHT и отобразятся в `nexxusd peers`.*
-
-### Шаг 4: Межузловой тест 6-в-1
-Запустите диагностический тест связи между серверами:
-```bash
-nexxusd test-interhost 192.168.1.20:3999
-```
-Тест проверит:
-1. Определение ASN и локальной зоны.
-2. Сетевой RTT фрейма PING/PONG.
-3. Запрос Kademlia DHT (FIND_NODE).
-4. Заливку тестового 16KB шарда на удаленный хост (`STORE_CHUNK`).
-5. Скачивание шарда обратно с побитовой сверкой хеша (`FETCH_CHUNK`).
-6. Удаленную криптографическую верификацию Proof-of-Retrievability (`POR_CHALLENGE`).
-
-### Шаг 5: Реальное распределенное хранение файлов
-На **Хосте 1**:
-```bash
-echo "Секретные данные корпоративного сейфа" > /tmp/backup.txt
-nexxusd upload /tmp/backup.txt --peers=192.168.1.20:3999
-```
-Команда выведет `SHA-256` хеш файла и `Vault Key`.
-
-На **Хосте 2** (или любой другой ноде сети):
-```bash
-nexxusd download <SHA-256_ХЕШ> /tmp/restored.txt --peers=192.168.1.10:3999 --vault-key=<ВАШ_КЛЮЧ>
-cat /tmp/restored.txt
-```
-Файл скачивается, по частям собирается через матрицу Рида-Соломона и дешифруется со 100% точностью.
+* **Second Life for 5.3 Billion Idle Smartphones**: UN/ITU estimates over 5.3B working smartphones sit idle in drawers worldwide. Plugged into home Wi-Fi, they consume merely 1.5 W and act as indestructible storage nodes with built-in battery backup (free UPS).
+* **Anti-Loop Sybil Resistance Invariant**: $\text{Fee}_{\text{writer}} (1.30) > \text{Reward}_{\text{storer}} (1.25)$. Self-dealing data storage incurs a strictly negative yield of $-0.05$ NEXX per cycle, mathematically neutralizing farming attacks.
 
 ---
 
-## 🗺️ Дорожная карта: Нативные версии для Windows и Android
+## ❓ FAQ & Troubleshooting
 
-Детальный архитектурный план и график разработки доступен в документе:
-👉 **[docs/ROADMAP_WINDOWS_ANDROID.md](docs/ROADMAP_WINDOWS_ANDROID.md)**
-
-* **Windows**:
-  - [x] Автоматический инсталлятор PowerShell (`install.ps1`)
-  - [ ] Автономная системная служба Windows (через WinSW / NSSM)
-  - [ ] Сборка единого бинарника `nexxusd.exe` без необходимости Node.js
-  - [ ] Нативное GUI-приложение в системном трее (Tauri / WebView2)
-* **Android**:
-  - [x] Автоматический скрипт для Termux (`scripts/install-android-termux.sh`) с Wakelock
-  - [ ] Нативное приложение APK на **Kotlin + Jetpack Compose**
-  - [ ] Android Foreground Service с неснимаемым уведомлением в шторке
-  - [ ] Поддержка внешних карт памяти MicroSD через Scoped Storage
-  - [ ] Автообновление APK напрямую через GitHub Releases API
-
----
-
-## 📈 Рыночный Прогноз и Экономика на 3 года (2026–2029)
-
-Полный стратегический анализ рыночных перспектив, оценки емкости криптооблака и токеномики доступен в документе:
-👉 **[docs/MARKET_FORECAST_AND_TOKENOMICS_3Y.md](docs/MARKET_FORECAST_AND_TOKENOMICS_3Y.md)**
-
-### Ключевая концепция: «Вторая жизнь старых смартфонов»
-По оценкам ООН/ITU, в мире скопилось более **5.3 миллиарда "спящих" смартфонов**, лежащих без дела в ящиках столов. Выбросить их жалко (рабочий экран и память), а продать на вторичке за $10–$20 бессмысленно.
-* **NeXXUs дает им идеальное назначение**: старый смартфон подключается к домашней розетке 24/7 и Wi-Fi, потребляя всего 1.5–2 Вт (копейки в месяц), с встроенным аккумулятором как бесплатным ИБП (UPS).
-* **Двойная выгода владельцу**:
-  1. **Личный защищенный сейф (10–20 ГБ)** для seed-фраз, паролей, фото и важных документов с доступом со своего основного телефона.
-  2. **Майнинг 24/7 на излишке памяти (30–100+ ГБ)**, приносящий постоянный пассивный доход в токенах NXX.
-
-Краткая сводка сценариев развития сети NeXXUs к 2029 году:
-* 📉 **Пессимистичный (Нишевый шифропанк-оазис)**: 35–60 тыс. нод (75% — старые смартфоны), **18–35 PB** емкости криптооблака, капитализация **$40M–$80M**.
-* 📊 **Реалистичный (Лидер DePIN-хранилищ)**: 500 тыс. – 1 млн нод в 150+ странах (80% — смартфоны 24/7), **400–900 PB** емкости, капитализация **$900M–$2.2B**, дефляционное сжигание токенов на $1.5M–$3.5M/мес.
-* 🚀 **Оптимистичный (Глобальный слой хранения Web3/AI)**: 6–15 млн нод по всему миру, **8–25 EB** (эксабайт!) децентрализованного флеш-хранилища, капитализация **$10B–$25B** (уровень топ-10 мировых криптовалют), децентрализованная альтернатива Big Tech облакам.
-
----
-
-## 🤖 GitHub Actions и Автоматические Релизы
-
-В репозитории настроен пайплайн CI/CD (`.github/workflows/ci-release.yml`):
-* При каждом коммите и Pull Request:
-  - Проводится статический анализ кода (`npm run lint`).
-  - Прогоняются **113 криптографических тестов** и золотые векторы (Reed-Solomon, ChaCha20, Kademlia, Merkle Tree).
-  - Собирается бандл `dist/nexxusd.cjs` и Debian-пакет `nexxus-node_2.0.0_amd64.deb`.
-* При создании тега версии (например, `git tag v2.0.0 && git push --tags`):
-  - GitHub Actions автоматически создает новый **GitHub Release**.
-  - К релизу прикрепляются готовые `.deb` пакеты, бандл и инсталляционные скрипты.
-
----
-
-## ❓ FAQ и Решение Проблем
-
-#### 1. Как открыть порт в фаерволе Ubuntu?
-Если на сервере включен `ufw`, разрешите входящие P2P подключения:
+#### How do I open the port on Linux UFW firewall?
 ```bash
 sudo ufw allow 3999/tcp comment "NeXXUs P2P Wire Protocol"
 sudo ufw reload
 ```
 
-#### 2. Нужен ли белый статический IP-адрес?
-Для базового P2P взаимодействия внутри локальной сети или при прямом соединении белый IP удобен, но **не обязателен**. В протокол NeXXUs встроена адресация через **Tor v3 (.onion)**, которая автоматически пробивает любой NAT и не требует проброса портов на роутере.
+#### Do I need a public static IP address?
+A public IP is useful for direct peering, but **not required**. NeXXUs features native **Tor v3 (.onion)** hidden service routing, automatically bypassing NAT and firewalls without router configuration.
 
-#### 3. Где хранятся ключи и что делать в случае переноса ноды?
-Файл паспорта узла хранится в `/var/lib/nexxus/node_identity.json`. При инициализации (`nexxusd init`) вам показывается **12-словная мнемоническая фраза**. Сохраните её офлайн. Восстановить ноду на любом новом сервере можно командой:
+#### How do I migrate my node to a new server?
+Securely save the 12-word mnemonic phrase generated during `nexxusd init`. On any new server, run:
 ```bash
-nexxusd init --mnemonic="ваша фраза из двенадцати слов..."
+nexxusd init --mnemonic="your twelve mnemonic words go here..."
 ```
 
 ---
 
 <p align="center">
-  <b>Разработано для свободного, суверенного и несокрушимого хранения данных.</b><br>
-  <sub>NeXXUs Protocol Core • Версия 2.0.0-ubuntu</sub>
+  <b>Engineered for free, sovereign, and indestructible data custody.</b><br>
+  <sub>NeXXUs Protocol Core • Version 2.0.0</sub>
 </p>

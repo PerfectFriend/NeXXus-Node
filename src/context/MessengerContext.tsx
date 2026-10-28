@@ -32,8 +32,14 @@ export interface MessengerContextValue {
   /** Actions */
   sendMessage: (
     text: string, 
-    attachment?: { name: string; sizeBytes: number; chunksCount: number; fileId: string }
+    attachment?: { name: string; sizeBytes: number; chunksCount: number; fileId: string },
+    burner?: { ttlSeconds: number },
+    recipientId?: string
   ) => void;
+  deleteMessage: (messageId: string) => void;
+  forwardMessage: (messageId: string, targetRecipientId: string) => void;
+  toggleReaction: (messageId: string, emoji: string) => void;
+  revealBurnerNote: (messageId: string) => void;
   togglePrivateServer: () => void;
 }
 
@@ -63,7 +69,15 @@ export const MessengerProvider: React.FC<MessengerProviderProps> = ({
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // If previous localStorage didn't have favorites messages, merge them!
+          const hasVault = parsed.some(m => m.recipientId === 'vault_favorites' || m.senderId === 'vault_favorites');
+          if (!hasVault) {
+            const vaultItems = INITIAL_MESSAGES.filter(m => m.recipientId === 'vault_favorites');
+            return [...parsed, ...vaultItems];
+          }
+          return parsed;
+        }
       } catch {
         /* fallback */
       }
@@ -77,6 +91,30 @@ export const MessengerProvider: React.FC<MessengerProviderProps> = ({
       localStorage.setItem('nexxus_messages', JSON.stringify(messages));
     }
   }, [messages, isDecoyMode]);
+
+  // Periodic check for burner notes expiration (TTL countdown)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setMessages(prev => {
+        let changed = false;
+        const updated = prev.map(m => {
+          if (m.burner && m.burner.revealed && !m.burner.isBurned && m.burner.expiresAt && now >= m.burner.expiresAt) {
+            changed = true;
+            return {
+              ...m,
+              text: '🔥 Сообщение самоуничтожено (TTL истек)',
+              attachment: undefined,
+              burner: { ...m.burner, isBurned: true }
+            };
+          }
+          return m;
+        });
+        return changed ? updated : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Listen for real P2P mesh bus broadcasts across browser tabs/nodes
   useEffect(() => {
@@ -106,28 +144,41 @@ export const MessengerProvider: React.FC<MessengerProviderProps> = ({
 
   const sendMessage = useCallback((
     text: string, 
-    attachment?: { name: string; sizeBytes: number; chunksCount: number; fileId: string }
+    attachment?: { name: string; sizeBytes: number; chunksCount: number; fileId: string },
+    burner?: { ttlSeconds: number },
+    recipientId: string = 'contact_alice'
   ) => {
     const newMsg: ChatMessage = {
       id: `msg_${Date.now()}`,
       senderId: 'current_user',
       senderName: 'Me',
       senderOnion: currentNode.onionAddress,
-      recipientId: 'contact_alice',
+      recipientId,
       text,
       timestamp: Date.now(),
       protocol: attachment ? 'xFTP' : 'SMP',
       attachment,
       isRelayedViaPrivateServer: currentNode.smpServerRunning,
       status: 'delivered',
+      burner: burner ? {
+        ttlSeconds: burner.ttlSeconds,
+        isBurned: false,
+        revealed: true,
+        expiresAt: Date.now() + burner.ttlSeconds * 1000,
+      } : undefined,
     };
 
     setMessages(prev => [...prev, newMsg]);
 
+    // If sent to Personal Vault (Избранное), no remote peer transmission or auto-reply needed!
+    if (recipientId === 'vault_favorites') {
+      return;
+    }
+
     // Transmit authentic binary frame via P2P Mesh Bus (NEXX magic + ChaCha20-Poly1305 + SHA-256)
     p2pMeshBus
       .sendSmpMessage(
-        'contact_alice',
+        recipientId,
         'alice4p8q1w4e7r0t2y5u8i1o4p7a0s3d6f9g2h5j8k1l4z7x0c.onion:9050',
         text,
         attachment
@@ -136,15 +187,24 @@ export const MessengerProvider: React.FC<MessengerProviderProps> = ({
         console.warn('P2P wire broadcast notice:', err);
       });
 
-    // Simulated peer acknowledgement reply
+    // Simulated peer acknowledgement reply (only for peer contacts)
     setTimeout(() => {
+      const isBurner = !!burner;
+      const peerName = recipientId === 'contact_bob' 
+        ? 'Bob (Desktop Station)' 
+        : recipientId === 'contact_charlie' 
+        ? 'Charlie (Archive Node)' 
+        : 'Alice (Guardian #4)';
+
       const replyMsg: ChatMessage = {
         id: `msg_reply_${Date.now()}`,
-        senderId: 'contact_alice',
-        senderName: 'Alice (Guardian #4)',
+        senderId: recipientId,
+        senderName: peerName,
         senderOnion: 'alice4p8q1w4e7r0t2y5u8i1o4p7a0s3d6f9g2h5j8k1l4z7x0c.onion:9050',
         recipientId: 'current_user',
-        text: attachment
+        text: isBurner
+          ? `🔥 Сгорающая заметка получена. Таймер ${burner.ttlSeconds} сек активирован.`
+          : attachment
           ? `Получен xFTP поток чанков "${attachment.name}". 6× репликация (RF=6×) подтверждена кворумом!`
           : `Принято по протоколу SMP через Onion v3 сервис. Сквозное шифрование подтверждено.`,
         timestamp: Date.now(),
@@ -155,6 +215,56 @@ export const MessengerProvider: React.FC<MessengerProviderProps> = ({
       setMessages(prev => [...prev, replyMsg]);
     }, 1800);
   }, [currentNode]);
+
+  const deleteMessage = useCallback((messageId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+  }, []);
+
+  const forwardMessage = useCallback((messageId: string, targetRecipientId: string) => {
+    setMessages(prev => {
+      const targetMsg = prev.find(m => m.id === messageId);
+      if (!targetMsg) return prev;
+      const forwardedMsg: ChatMessage = {
+        id: `msg_fwd_${Date.now()}`,
+        senderId: 'current_user',
+        senderName: 'Me',
+        senderOnion: currentNode.onionAddress,
+        recipientId: targetRecipientId,
+        text: targetMsg.text ? `[Переслано]: ${targetMsg.text}` : `[Пересланный файл: ${targetMsg.attachment?.name}]`,
+        timestamp: Date.now(),
+        protocol: targetMsg.protocol,
+        attachment: targetMsg.attachment ? { ...targetMsg.attachment } : undefined,
+        isRelayedViaPrivateServer: currentNode.smpServerRunning,
+        status: 'delivered',
+      };
+      return [...prev, forwardedMsg];
+    });
+  }, [currentNode]);
+
+  const toggleReaction = useCallback((messageId: string, emoji: string) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId) {
+        return { ...m, reaction: m.reaction === emoji ? undefined : emoji };
+      }
+      return m;
+    }));
+  }, []);
+
+  const revealBurnerNote = useCallback((messageId: string) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId && m.burner && !m.burner.revealed) {
+        return {
+          ...m,
+          burner: {
+            ...m.burner,
+            revealed: true,
+            expiresAt: Date.now() + m.burner.ttlSeconds * 1000,
+          }
+        };
+      }
+      return m;
+    }));
+  }, []);
 
   const togglePrivateServer = useCallback(() => {
     if (onUpdateCurrentNode) {
@@ -171,6 +281,10 @@ export const MessengerProvider: React.FC<MessengerProviderProps> = ({
     messages: activeMessages,
     currentNode,
     sendMessage,
+    deleteMessage,
+    forwardMessage,
+    toggleReaction,
+    revealBurnerNote,
     togglePrivateServer,
   };
 
